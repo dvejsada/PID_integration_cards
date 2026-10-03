@@ -9,7 +9,7 @@
  * entity IDs are generated from translated names and differ per language.
  */
 
-const CARD_VERSION = "1.0.0";
+const CARD_VERSION = "1.0.0-alpha.1";
 const DOMAIN = "pid_departures";
 const CARD_TYPE = "pid-departures-card";
 const EDITOR_TYPE = "pid-departures-card-editor";

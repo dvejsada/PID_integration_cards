@@ -1,8 +1,8 @@
 # Changelog
 
-## 1.0.0
+## 1.0.0-alpha.1
 
-First release of the card, moved out of the [PID Departure Boards integration](https://github.com/dvejsada/PID_integration) into its own repository.
+First pre-release of the card, moved out of the [PID Departure Boards integration](https://github.com/dvejsada/PID_integration) into its own repository.
 
 - Departure board for one or more PID departure boards, merged and sorted by time
 - Countdown recalculated in the browser every 15 seconds
