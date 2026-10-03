@@ -1,0 +1,28 @@
+name: Release
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Attach card to release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check that the tag matches CARD_VERSION
+        run: |
+          version=$(sed -n 's/^const CARD_VERSION = "\(.*\)";$/\1/p' dist/pid-departures-card.js)
+          if [ "$GITHUB_REF_NAME" != "v$version" ]; then
+            echo "::error::Release tag $GITHUB_REF_NAME does not match CARD_VERSION $version (expected v$version)"
+            exit 1
+          fi
+
+      - name: Upload pid-departures-card.js
+        run: gh release upload "$GITHUB_REF_NAME" dist/pid-departures-card.js --clobber
+        env:
+          GH_TOKEN: ${{ github.token }}

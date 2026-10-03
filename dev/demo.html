@@ -1,0 +1,177 @@
+<!doctype html>
+<!--
+  Preview of the card with mock data, no Home Assistant needed.
+  Open this file in a browser. See docs/development.md.
+-->
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PID Departures card demo</title>
+<style>
+  body { margin: 0; padding: 16px 24px; font-family: Roboto, Arial, sans-serif; background: #f0f0f0; color: #333; }
+  body.dark { background: #0d0d0d; color: #ccc; }
+  .toolbar { display: flex; gap: 16px; align-items: center; margin-bottom: 16px; }
+  .grid { display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-start; }
+  .demo { width: 420px; }
+  .demo h4 { margin: 0 0 8px; font-weight: 500; opacity: .7; }
+  /* Subset of the Home Assistant theme variables the card uses. */
+  :root {
+    --primary-text-color: #212121; --secondary-text-color: #727272; --divider-color: rgba(0, 0, 0, .12);
+    --card-background-color: #fff; --secondary-background-color: #e5e5e5; --primary-color: #03a9f4;
+    --warning-color: #ffa600; --error-color: #db4437; --info-color: #039be5; --rgb-warning-color: 255, 166, 0;
+  }
+  body.dark {
+    --primary-text-color: #e1e1e1; --secondary-text-color: #9b9b9b; --divider-color: rgba(225, 225, 225, .12);
+    --card-background-color: #1c1c1c; --secondary-background-color: #282828;
+  }
+</style>
+<script>
+  // Minimal stand-ins for the Home Assistant elements the card uses.
+  window.ICONS={"mdi:cloud-alert":"M21.86 12.5C21.1 11.63 20.15 11.13 19 11C19 9.05 18.32 7.4 16.96 6.04C15.6 4.68 13.95 4 12 4C10.42 4 9 4.47 7.75 5.43S5.67 7.62 5.25 9.15C4 9.43 2.96 10.08 2.17 11.1S1 13.28 1 14.58C1 16.09 1.54 17.38 2.61 18.43C3.69 19.5 5 20 6.5 20H18.5C19.75 20 20.81 19.56 21.69 18.69C22.56 17.81 23 16.75 23 15.5C23 14.35 22.62 13.35 21.86 12.5M13 17H11V15H13V17M13 13H11V7H13V13Z","mdi:alert-outline":"M12,2L1,21H23M12,6L19.53,19H4.47M11,10V14H13V10M11,16V18H13V16","mdi:calendar-clock":"M15,13H16.5V15.82L18.94,17.23L18.19,18.53L15,16.69V13M19,8H5V19H9.67C9.24,18.09 9,17.07 9,16A7,7 0 0,1 16,9C17.07,9 18.09,9.24 19,9.67V8M5,21C3.89,21 3,20.1 3,19V5C3,3.89 3.89,3 5,3H6V1H8V3H16V1H18V3H19A2,2 0 0,1 21,5V11.1C22.24,12.36 23,14.09 23,16A7,7 0 0,1 16,23C14.09,23 12.36,22.24 11.1,21H5M16,11.15A4.85,4.85 0 0,0 11.15,16C11.15,18.68 13.32,20.85 16,20.85A4.85,4.85 0 0,0 20.85,16C20.85,13.32 18.68,11.15 16,11.15Z","mdi:wheelchair-accessibility":"M18.4,11.2L14.3,11.4L16.6,8.8C16.8,8.5 16.9,8 16.8,7.5C16.7,7.2 16.6,6.9 16.3,6.7L10.9,3.5C10.5,3.2 9.9,3.3 9.5,3.6L6.8,6.1C6.3,6.6 6.2,7.3 6.7,7.8C7.1,8.3 7.9,8.3 8.4,7.9L10.4,6.1L12.3,7.2L8.1,11.5C8,11.6 8,11.7 7.9,11.7C7.4,11.9 6.9,12.1 6.5,12.4L8,13.9C8.5,13.7 9,13.5 9.5,13.5C11.4,13.5 13,15.1 13,17C13,17.6 12.9,18.1 12.6,18.5L14.1,20C14.7,19.1 15,18.1 15,17C15,15.8 14.6,14.6 13.9,13.7L17.2,13.4L17,18.2C16.9,18.9 17.4,19.4 18.1,19.5H18.2C18.8,19.5 19.3,19 19.4,18.4L19.6,12.5C19.6,12.2 19.5,11.8 19.3,11.6C19,11.3 18.7,11.2 18.4,11.2M18,5.5A2,2 0 0,0 20,3.5A2,2 0 0,0 18,1.5A2,2 0 0,0 16,3.5A2,2 0 0,0 18,5.5M12.5,21.6C11.6,22.2 10.6,22.5 9.5,22.5C6.5,22.5 4,20 4,17C4,15.9 4.3,14.9 4.9,14L6.4,15.5C6.2,16 6,16.5 6,17C6,18.9 7.6,20.5 9.5,20.5C10.1,20.5 10.6,20.4 11,20.1L12.5,21.6Z","mdi:snowflake":"M20.79,13.95L18.46,14.57L16.46,13.44V10.56L18.46,9.43L20.79,10.05L21.31,8.12L19.54,7.65L20,5.88L18.07,5.36L17.45,7.69L15.45,8.82L13,7.38V5.12L14.71,3.41L13.29,2L12,3.29L10.71,2L9.29,3.41L11,5.12V7.38L8.5,8.82L6.5,7.69L5.92,5.36L4,5.88L4.47,7.65L2.7,8.12L3.22,10.05L5.55,9.43L7.55,10.56V13.45L5.55,14.58L3.22,13.96L2.7,15.89L4.47,16.36L4,18.12L5.93,18.64L6.55,16.31L8.55,15.18L11,16.62V18.88L9.29,20.59L10.71,22L12,20.71L13.29,22L14.7,20.59L13,18.88V16.62L15.5,15.17L17.5,16.3L18.12,18.63L20,18.12L19.53,16.35L21.3,15.88L20.79,13.95M9.5,10.56L12,9.11L14.5,10.56V13.44L12,14.89L9.5,13.44V10.56Z","mdi:weather-night":"M17.75,4.09L15.22,6.03L16.13,9.09L13.5,7.28L10.87,9.09L11.78,6.03L9.25,4.09L12.44,4L13.5,1L14.56,4L17.75,4.09M21.25,11L19.61,12.25L20.2,14.23L18.5,13.06L16.8,14.23L17.39,12.25L15.75,11L17.81,10.95L18.5,9L19.19,10.95L21.25,11M18.97,15.95C19.8,15.87 20.69,17.05 20.16,17.8C19.84,18.25 19.5,18.67 19.08,19.07C15.17,23 8.84,23 4.94,19.07C1.03,15.17 1.03,8.83 4.94,4.93C5.34,4.53 5.76,4.17 6.21,3.85C6.96,3.32 8.14,4.21 8.06,5.04C7.79,7.9 8.75,10.87 10.95,13.06C13.14,15.26 16.1,16.22 18.97,15.95M17.33,17.97C14.5,17.81 11.7,16.64 9.53,14.5C7.36,12.31 6.2,9.5 6.04,6.68C3.23,9.82 3.34,14.64 6.35,17.66C9.37,20.67 14.19,20.78 17.33,17.97Z","mdi:swap-horizontal-bold":"M8,10V13H14V18H8V21L2,15.5L8,10M22,8.5L16,3V6H10V11H16V14L22,8.5Z"};
+  customElements.define("ha-card", class extends HTMLElement {
+    connectedCallback() {
+      Object.assign(this.style, {
+        display: "block", background: "var(--card-background-color)", borderRadius: "12px",
+        border: "1px solid var(--divider-color)", color: "var(--primary-text-color)",
+      });
+    }
+  });
+  customElements.define("ha-icon", class extends HTMLElement {
+    static get observedAttributes() { return ["icon"]; }
+    connectedCallback() { this.render(); }
+    attributeChangedCallback() { this.render(); }
+    render() {
+      const path = ICONS[this.getAttribute("icon")] || "";
+      this.style.display = "inline-flex";
+      this.innerHTML = `<svg viewBox="0 0 24 24" style="width: var(--mdc-icon-size, 24px); height: var(--mdc-icon-size, 24px); fill: currentColor"><path d="${path}"/></svg>`;
+    }
+  });
+</script>
+<script src="../dist/pid-departures-card.js"></script>
+</head>
+<body>
+<div class="toolbar">
+  <label><input type="checkbox" id="dark"> Dark theme</label>
+  <label>Language
+    <select id="lang"><option>en</option><option>cs</option><option>sk</option><option>de</option></select>
+  </label>
+  <label>Time format
+    <select id="tf"><option value="24">24 h</option><option value="12">12 h</option></select>
+  </label>
+</div>
+<div class="grid" id="grid"></div>
+<script>
+const MIN = 60000;
+
+/** Attributes of a route_name sensor, as the integration publishes them. */
+function departure(now, d) {
+  const delay = d.delay ?? 0;
+  const iso = (min) => new Date(now + min * MIN).toISOString();
+  return {
+    arrival_time_est: null, arrival_time_sched: null,
+    departure_time_est: iso(d.in + delay / 60), departure_time_sched: iso(d.in), departure_in_min: "",
+    is_delay_avail: d.realtime !== false, delay_min: Math.floor(delay / 60), delay_sec: delay,
+    route_name: d.line, route_type: d.type || "bus", train_number: d.train || null,
+    trip_id: "demo", trip_direction: null, trip_headsign: d.to,
+    is_air_conditioned: !!d.ac, is_at_stop: !!d.atStop, is_canceled: !!d.canceled, is_night: !!d.night,
+    is_regional: false, is_substitute: !!d.substitute, is_wheelchair_accessible: !!d.wheelchair,
+    last_stop_id: null, last_stop_name: null, stop_id: "U0", stop_platform: d.platform || null,
+    latitude: 50.08, longitude: 14.43,
+  };
+}
+
+/** A hass object with departure board devices, their entities and states. */
+function mockHass(boards, { language = "en", timeFormat = "24", staleMinutes = 0 } = {}) {
+  const now = Date.now();
+  const entities = {}, devices = {}, states = {};
+  const add = (entityId, deviceId, key, state, attributes = {}) => {
+    entities[entityId] = { entity_id: entityId, device_id: deviceId, platform: "pid_departures", translation_key: key };
+    states[entityId] = { entity_id: entityId, state, attributes };
+  };
+  boards.forEach((board, b) => {
+    const deviceId = board.id;
+    devices[deviceId] = { id: deviceId, name: board.name };
+    board.departures.forEach((d, i) => {
+      add(`sensor.${deviceId}_next_route_name_${i + 1}`, deviceId, "route_name", d.line, departure(now, d));
+    });
+    add(`binary_sensor.${deviceId}_infotext`, deviceId, "infotext", board.infotext ? "on" : "off",
+      board.infotext ? { text: board.infotext.cs, text_en: board.infotext.en } : {});
+    add(`sensor.${deviceId}_updated`, deviceId, "updated", new Date(now - staleMinutes * MIN).toISOString());
+  });
+  return {
+    entities, devices, states, language,
+    locale: { language, time_format: timeFormat, time_zone: "local" },
+    config: { time_zone: "Europe/Prague" },
+  };
+}
+
+const BOARDS = [
+  { id: "plananska_a", name: "Plaňanská A", departures: [
+    { line: "188", to: "Kavčí hory", in: 0.4, atStop: true, wheelchair: true, ac: true },
+    { line: "199", to: "Sídliště Malešice", in: 4, delay: 120, wheelchair: true },
+    { line: "133", to: "Sídliště Malešice přes Nádraží Strašnice", in: 9, wheelchair: true, ac: true },
+    { line: "188", to: "Kavčí hory", in: 13, realtime: false },
+    { line: "X913", to: "Černý Most", in: 3, delay: 720, wheelchair: true, substitute: true },
+    { line: "22", type: "tram", to: "Bílá Hora", in: 6, delay: -60 },
+    { line: "X9", to: "Náměstí Míru", in: 21, substitute: true, canceled: true },
+    { line: "913", to: "Sídliště Ďáblice", in: 95, night: true, wheelchair: true },
+  ] },
+  { id: "palmovka_a", name: "Palmovka A",
+    infotext: {
+      cs: "Z důvodu opravy trati jsou tramvaje linky 3 odkloněny přes zastávku Libeňský most.",
+      en: "Due to track works, tram line 3 is diverted via Libeňský most.",
+    },
+    departures: [
+      { line: "B", type: "metro", to: "Černý Most", in: 1, platform: "M1", wheelchair: true },
+      { line: "8", type: "tram", to: "Starý Hloubětín", in: 3, delay: 60, platform: "A", wheelchair: true, ac: true },
+      { line: "12", type: "tram", to: "Lehovec", in: 7, platform: "A", wheelchair: true },
+    ] },
+  { id: "palmovka_b", name: "Palmovka B", departures: [
+    { line: "B", type: "metro", to: "Zličín", in: 2, platform: "M2", wheelchair: true },
+    { line: "S9", type: "train", train: "Os 9362", to: "Praha hl.n.", in: 6, platform: "B" },
+    { line: "C", type: "metro", to: "Háje", in: 8, platform: "M" },
+    { line: "58", type: "trolleybus", to: "Letňany", in: 14, platform: "B", wheelchair: true, ac: true },
+  ] },
+];
+
+const SCENARIOS = [
+  { title: "Wide card (480 px)", width: 480, config: { devices: ["plananska_a"] } },
+  { title: "Two platforms merged", config: { devices: ["palmovka_a", "palmovka_b"] } },
+  { title: "Compact, stale data", config: { devices: ["plananska_a"], compact: true }, staleMinutes: 12 },
+  { title: "Time only", config: { devices: ["palmovka_a", "palmovka_b"], time_format: "absolute" } },
+  { title: "Countdown only", config: { devices: ["plananska_a"], time_format: "relative" } },
+  { title: "Medium card (400 px)", width: 400, config: { devices: ["plananska_a"] } },
+  { title: "Narrow card (300 px)", width: 300, config: { devices: ["plananska_a"] } },
+  { title: "No board selected", config: {} },
+];
+
+const cards = [];
+for (const s of SCENARIOS) {
+  const wrapper = document.createElement("div");
+  wrapper.className = "demo";
+  if (s.width) wrapper.style.width = `${s.width}px`;
+  wrapper.innerHTML = `<h4>${s.title}</h4>`;
+  const card = document.createElement("pid-departures-card");
+  card.setConfig({ type: "custom:pid-departures-card", ...s.config });
+  wrapper.append(card);
+  document.getElementById("grid").append(wrapper);
+  cards.push({ card, scenario: s });
+}
+
+function update() {
+  document.body.classList.toggle("dark", document.getElementById("dark").checked);
+  for (const { card, scenario } of cards) {
+    card.hass = mockHass(BOARDS, {
+      language: document.getElementById("lang").value,
+      timeFormat: document.getElementById("tf").value,
+      staleMinutes: scenario.staleMinutes,
+    });
+  }
+}
+document.querySelectorAll(".toolbar input, .toolbar select").forEach((el) => el.addEventListener("change", update));
+document.addEventListener("hass-more-info", (ev) => console.log("more-info", ev.detail.entityId));
+update();
+</script>
+</body>
+</html>
