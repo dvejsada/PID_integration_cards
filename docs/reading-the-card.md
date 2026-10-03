@@ -55,7 +55,14 @@ Hover over an icon (or long-press on a touch screen) to see its description. The
 
 The header shows the stop name, or the common part of the names when several boards are selected (*Palmovka* for *Palmovka A* and *Palmovka B*). A different title can be set with `title`.
 
-A **cloud icon with a time** in the top right corner means the data have not been updated for more than three minutes, e.g. because the API is unreachable. The time is when the data were last updated, so the departures shown may be out of date.
+A **cloud icon** in the top right corner warns about the data:
+
+| Shown                         | Meaning |
+|:------------------------------|:--------|
+| cloud icon with a time        | The data have not been updated for more than three minutes. The time is when they were last updated, so the departures shown may be out of date. |
+| cloud icon, *Data unavailable* | The integration has no data for the board, e.g. because the API is unreachable or the board failed to load. With several boards, the departures of the others are still shown. |
+
+When there are no departures to show, the card says why: *No upcoming departures* when the timetable is empty (e.g. at night), *Departure data are unavailable* when the integration has no data.
 
 ## Service alerts
 

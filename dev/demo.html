@@ -82,18 +82,24 @@ function departure(now, d) {
 }
 
 /** A hass object with departure board devices, their entities and states. */
-function mockHass(boards, { language = "en", timeFormat = "24", staleMinutes = 0 } = {}) {
+function mockHass(boards, { language = "en", timeFormat = "24", staleMinutes = 0, outage = false, emptyBoards = [] } = {}) {
   const now = Date.now();
   const entities = {}, devices = {}, states = {};
   const add = (entityId, deviceId, key, state, attributes = {}) => {
     entities[entityId] = { entity_id: entityId, device_id: deviceId, platform: "pid_departures", translation_key: key };
-    states[entityId] = { entity_id: entityId, state, attributes };
+    // A failed poll makes every entity of the integration unavailable.
+    states[entityId] = outage
+      ? { entity_id: entityId, state: "unavailable", attributes: {} }
+      : { entity_id: entityId, state, attributes };
   };
   boards.forEach((board, b) => {
     const deviceId = board.id;
     devices[deviceId] = { id: deviceId, name: board.name };
     board.departures.forEach((d, i) => {
-      add(`sensor.${deviceId}_next_route_name_${i + 1}`, deviceId, "route_name", d.line, departure(now, d));
+      const id = `sensor.${deviceId}_next_route_name_${i + 1}`;
+      add(id, deviceId, "route_name", d.line, departure(now, d));
+      // No departures from the API (e.g. at night): departure sensors are unavailable.
+      if (emptyBoards.includes(deviceId)) states[id] = { entity_id: id, state: "unavailable", attributes: {} };
     });
     add(`binary_sensor.${deviceId}_infotext`, deviceId, "infotext", board.infotext ? "on" : "off",
       board.infotext ? { text: board.infotext.cs, text_en: board.infotext.en } : {});
@@ -143,6 +149,8 @@ const SCENARIOS = [
   { title: "Countdown only", config: { devices: ["plananska_a"], time_format: "relative" } },
   { title: "Medium card (400 px)", width: 400, config: { devices: ["plananska_a"] } },
   { title: "Narrow card (300 px)", width: 300, config: { devices: ["plananska_a"] } },
+  { title: "API unavailable", config: { devices: ["plananska_a"] }, outage: true },
+  { title: "No departures (night)", config: { devices: ["plananska_a"] }, emptyBoards: ["plananska_a"] },
   { title: "No board selected", config: {} },
 ];
 
@@ -166,6 +174,8 @@ function update() {
       language: document.getElementById("lang").value,
       timeFormat: document.getElementById("tf").value,
       staleMinutes: scenario.staleMinutes,
+      outage: scenario.outage,
+      emptyBoards: scenario.emptyBoards,
     });
   }
 }

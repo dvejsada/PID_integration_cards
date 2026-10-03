@@ -9,7 +9,7 @@
  * entity IDs are generated from translated names and differ per language.
  */
 
-const CARD_VERSION = "1.0.0-alpha.1";
+const CARD_VERSION = "1.0.0-alpha.2";
 const DOMAIN = "pid_departures";
 const CARD_TYPE = "pid-departures-card";
 const EDITOR_TYPE = "pid-departures-card-editor";
@@ -41,6 +41,8 @@ const TRANSLATIONS = {
     no_board: "Select a departure board in the card configuration.",
     board_not_found: "Departure board not found. Check the card configuration.",
     stale: "Not updated since {time}",
+    unavailable: "Data unavailable",
+    unavailable_body: "Departure data are unavailable. Check the PID Departure Boards integration.",
     delay: "Delay",
     no_realtime: "Timetable (no real-time data)",
     platform: "Platform",
@@ -77,6 +79,8 @@ const TRANSLATIONS = {
     no_board: "V nastavení karty vyberte odjezdovou tabuli.",
     board_not_found: "Odjezdová tabule nebyla nalezena. Zkontrolujte nastavení karty.",
     stale: "Neaktualizováno od {time}",
+    unavailable: "Data nejsou k dispozici",
+    unavailable_body: "Data o odjezdech nejsou k dispozici. Zkontrolujte integraci PID Departure Boards.",
     delay: "Zpoždění",
     no_realtime: "Dle jízdního řádu (bez online dat)",
     platform: "Nástupiště",
@@ -113,6 +117,8 @@ const TRANSLATIONS = {
     no_board: "V nastavení karty vyberte odchodovú tabuľu.",
     board_not_found: "Odchodová tabuľa nebola nájdená. Skontrolujte nastavenie karty.",
     stale: "Neaktualizované od {time}",
+    unavailable: "Údaje nie sú k dispozícii",
+    unavailable_body: "Údaje o odchodoch nie sú k dispozícii. Skontrolujte integráciu PID Departure Boards.",
     delay: "Meškanie",
     no_realtime: "Podľa cestovného poriadku (bez online údajov)",
     platform: "Nástupište",
@@ -149,6 +155,8 @@ const TRANSLATIONS = {
     no_board: "Wähle in der Kartenkonfiguration eine Abfahrtstafel aus.",
     board_not_found: "Abfahrtstafel nicht gefunden. Prüfe die Kartenkonfiguration.",
     stale: "Nicht aktualisiert seit {time}",
+    unavailable: "Daten nicht verfügbar",
+    unavailable_body: "Abfahrtsdaten nicht verfügbar. Prüfe die Integration PID Departure Boards.",
     delay: "Verspätung",
     no_realtime: "Fahrplan (keine Echtzeitdaten)",
     platform: "Steig",
@@ -401,9 +409,13 @@ class PidDeparturesCard extends HTMLElement {
       body = `<div class="message warning">${escapeHtml(t.board_not_found)}</div>`;
     } else {
       const departures = this._departures(now);
-      body = departures.length
-        ? departures.map((d) => this._renderRow(d, now, t, fmt, columns)).join("")
-        : `<div class="message">${escapeHtml(t.no_departures)}</div>`;
+      if (departures.length) {
+        body = departures.map((d) => this._renderRow(d, now, t, fmt, columns)).join("");
+      } else if (this._boards.filter((b) => b.found).every((b) => this._isDown(b))) {
+        body = `<div class="message warning">${escapeHtml(t.unavailable_body)}</div>`;
+      } else {
+        body = `<div class="message">${escapeHtml(t.no_departures)}</div>`;
+      }
     }
 
     if (!this._card) {
@@ -454,6 +466,20 @@ class PidDeparturesCard extends HTMLElement {
     });
   }
 
+  /**
+   * Whether the integration currently has no data for the board.
+   *
+   * All entities of a board turn unavailable when a poll fails or the board
+   * is not loaded. The departure sensors alone cannot tell that apart from
+   * an empty timetable (they are unavailable then too), the "updated" sensor
+   * can: it only becomes unavailable together with the whole board.
+   */
+  _isDown(board) {
+    const entityId = board.updatedEntity || board.infotextEntity;
+    const state = entityId && this._hass.states[entityId]?.state;
+    return state === "unavailable";
+  }
+
   /** Grid columns of the departure list, in display order. */
   _columns() {
     const config = this._config;
@@ -468,13 +494,18 @@ class PidDeparturesCard extends HTMLElement {
   _renderHeader(now, t, fmt) {
     const title = this._config.title || commonTitle(this._boards.map((b) => b.name));
 
-    // The "updated" sensor keeps its old timestamp when polling fails.
     let status = "";
     const updated = this._boards
       .map((b) => b.updatedEntity && parseDate(this._hass.states[b.updatedEntity]?.state))
       .filter(Boolean)
       .sort((x, y) => x - y)[0];
-    if (updated && now - updated > STALE_AFTER_MS) {
+    if (this._boards.some((b) => b.found && this._isDown(b))) {
+      status = `
+        <div class="stale" title="${escapeHtml(t.unavailable_body)}">
+          <ha-icon icon="mdi:cloud-alert"></ha-icon>
+          <span>${escapeHtml(t.unavailable)}</span>
+        </div>`;
+    } else if (updated && now - updated > STALE_AFTER_MS) {
       status = `
         <div class="stale" title="${escapeHtml(t.stale.replace("{time}", fmt.format(updated)))}">
           <ha-icon icon="mdi:cloud-alert"></ha-icon>

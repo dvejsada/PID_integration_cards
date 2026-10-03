@@ -39,9 +39,15 @@ The device picker only lists devices of the PID Departure Boards integration. Ch
 
 ## Fewer departures than expected
 
-- The card cannot show more departures than the integration provides. The *number of departures* is set when a departure board is added to the integration; to change it, remove the board and add it again (then select it in the card again, it gets a new device ID).
+- The card cannot show more departures than the integration provides. Change the *number of departures* in **Settings → Devices & services → PID Departure Boards → Configure** (integration 3.0 or newer). The board keeps its device, so the card needs no change. In older versions of the integration the board has to be removed and added again, and then selected in the card again because it gets a new device ID.
 - Departures that have already left are hidden (`hide_departed`).
 - `max_departures` limits the number of rows.
+
+## "Departure data are unavailable" or "Data unavailable" in the header
+
+The integration has no data for the board: the last update failed, or the board is not loaded. Since version 3.0 of the integration, all its entities become unavailable when an update fails, and the card shows this message instead of old departures. It disappears with the next successful update (once a minute).
+
+Check **Settings → Devices & services → PID Departure Boards** for a board that failed to load or asks to re-authenticate (e.g. an expired API key), and the Home Assistant log for errors of the integration.
 
 ## A cloud icon with a time in the header
 

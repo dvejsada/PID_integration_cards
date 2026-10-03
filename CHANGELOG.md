@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.0-alpha.2
+
+- When the integration has no data (the API is unreachable, or the board is not loaded), the card says *Departure data are unavailable* and shows *Data unavailable* in the header, instead of *No upcoming departures*. Since version 3.0 of the integration all its entities become unavailable when an update fails.
+- A board without any departures (e.g. at night) still shows *No upcoming departures*.
+
 ## 1.0.0-alpha.1
 
 First pre-release of the card, moved out of the [PID Departure Boards integration](https://github.com/dvejsada/PID_integration) into its own repository.
