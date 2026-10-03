@@ -122,3 +122,7 @@ time_format: absolute
 
 - [PID Departure Boards integration](https://github.com/dvejsada/PID_integration): the data source for this card
 - [Golemio API](https://api.golemio.cz/pid/docs/openapi/): the PID departure board API used by the integration
+
+## License
+
+[MIT](LICENSE)
