@@ -7,7 +7,7 @@
 - Departures show Home Assistant's press and hover effect (ripple) when the frontend provides it (HA 2024.6 and newer), otherwise the hover background as before.
 - Rows are updated in place instead of being rebuilt every 15 seconds, so focus and the press effect survive updates and less work is done on wall panels.
 - Text sizes, weights, corner radii and spacing follow Home Assistant's design tokens and font size scale, with the same values as before as fallbacks for older versions. To match Home Assistant's sizes the destination is 14 px instead of 15 px, the time 12 px instead of 13 px, the countdown bold, line badges 14 px with 4 px corners, and the compact title 20 px instead of 18 px.
-- The title is styled like the header of Home Assistant's own cards (`card-header` class, `ha-card-header-*` theme variables).
+- The title is styled like the header of Home Assistant's own cards (`card-header` class, `ha-card-header-*` theme variables). For card-mod styles: the title elements are now `.card-header` and `.name` instead of `.header` and `.title`.
 - The service alert can be expanded with the keyboard; the focused departure is outlined in high contrast mode; the hover effect respects *reduce motion*.
 
 - New options `lines` and `exclude_lines` to show only some lines, or to hide some, also in the visual editor. When no departure of the selected lines is left, the card says *No upcoming departures of the selected lines*.
