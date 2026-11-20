@@ -514,7 +514,8 @@ class PidDeparturesCard extends HTMLElement {
 
     this._shownRows = shownRows;
     this._card.classList.toggle("compact", config.compact);
-    this._card.classList.toggle("has-hold", hasAction(config.hold_action));
+    // Holding or double clicking a row must not select its text.
+    this._card.classList.toggle("no-select", hasAction(config.hold_action) || hasAction(config.double_tap_action));
 
     // Re-rendering replaces the rows and the service alert, keep keyboard focus
     // on the same departure or on the alert.
@@ -577,6 +578,7 @@ class PidDeparturesCard extends HTMLElement {
       if (ev.target.hasPointerCapture?.(ev.pointerId)) ev.target.releasePointerCapture(ev.pointerId);
       const press = {
         entity: row.dataset.entity,
+        pointerId: ev.pointerId,
         pointerType: ev.pointerType,
         x: ev.clientX,
         y: ev.clientY,
@@ -592,24 +594,29 @@ class PidDeparturesCard extends HTMLElement {
         }, HOLD_MS);
       }
       this._press = press;
+      // On the window: the finger may leave the card while pressing.
+      window.addEventListener("pointermove", this._onPointerMove, true);
       window.addEventListener("pointerup", this._onPointerUp, true);
       window.addEventListener("pointercancel", this._onPointerCancel, true);
     });
-    card.addEventListener("pointermove", (ev) => {
+    // Only the pointer that started the press counts, not a second finger.
+    const ownPointer = (ev) => this._press && ev.pointerId === this._press.pointerId;
+    this._onPointerMove = (ev) => {
       const press = this._press;
-      if (press && !press.held
+      if (ownPointer(ev) && !press.held
         && Math.hypot(ev.clientX - press.x, ev.clientY - press.y) > HOLD_MOVE_PX) {
         window.clearTimeout(press.timer);
       }
-    });
-    // On the window too: a press can end outside the card.
-    this._onPointerUp = () => {
-      if (!this._press) return;
+    };
+    this._onPointerUp = (ev) => {
+      if (!ownPointer(ev)) return;
       window.clearTimeout(this._press.timer);
       this._press.releasedAt ??= performance.now();
       this._stopWatchingPress();
     };
-    this._onPointerCancel = () => this._cancelPress();
+    this._onPointerCancel = (ev) => {
+      if (ownPointer(ev)) this._cancelPress();
+    };
     card.addEventListener("pointerup", this._onPointerUp);
     card.addEventListener("pointercancel", this._onPointerCancel);
     // A long press on a touch screen would open the context menu instead.
@@ -693,6 +700,7 @@ class PidDeparturesCard extends HTMLElement {
 
   _stopWatchingPress() {
     if (!this._onPointerUp) return;
+    window.removeEventListener("pointermove", this._onPointerMove, true);
     window.removeEventListener("pointerup", this._onPointerUp, true);
     window.removeEventListener("pointercancel", this._onPointerCancel, true);
   }
@@ -953,11 +961,13 @@ const STYLES = `
   }
   .row.interactive {
     cursor: pointer;
+    /* No double-tap zoom, a double tap may be an action. Scrolling and pinch zoom stay. */
+    touch-action: manipulation;
     transition: background-color 180ms ease-in-out;
   }
   .row.interactive:hover, .row.interactive:focus-visible { background: var(--secondary-background-color); }
   /* A long press must not select text or open the callout on touch screens. */
-  .has-hold .row.interactive { user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+  .no-select .row.interactive { user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
   .infotext:focus-visible { outline: 2px solid var(--warning-color); outline-offset: -2px; }
   @media (prefers-reduced-motion: reduce) {
     .row.interactive { transition: none; }
