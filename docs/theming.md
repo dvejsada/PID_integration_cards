@@ -25,6 +25,8 @@ The line badges use colours close to the PID ones. They can be changed by settin
 | `pid-color-ferry`      | `#00a3c7` | Ferries |
 | `pid-color-funicular`  | `#8b6d4c` | Petřín funicular |
 | `pid-color-night`      | `#1d1d1b` | Night lines of any type |
+| `pid-line-text-color`  | `#fff`    | Text of all line badges, except metro B |
+| `pid-color-metro-b-text` | `#1d1d1b` | Text of the metro B badge |
 
 Example theme in `configuration.yaml` (or a file in your `themes` folder):
 
@@ -36,7 +38,19 @@ frontend:
       pid-color-night: "#2b2b6b"
 ```
 
-Badges have white text, except metro B, which has dark text.
+Badges have white text, except metro B, which has dark text. When you change a background to a light colour, change the text colour with it, e.g. dark text on a lighter ferry colour:
+
+```yaml
+frontend:
+  themes:
+    My theme:
+      pid-color-ferry: "#7fd3e6"
+      pid-line-text-color: "#1d1d1b"
+```
+
+`pid-line-text-color` applies to all badges except metro B, so pick one that works with all your line colours.
+
+The delay badges use the theme's `info-color` (early, dark text), `warning-color` (late, dark text) and `error-color` (5 minutes or more, white text).
 
 The press and hover effect of the departures is Home Assistant's ripple, its colour can be changed with `ha-ripple-color` (default: the secondary text colour).
 

@@ -1143,7 +1143,7 @@ const STYLES = `
     font-weight: var(--ha-font-weight-bold, 700);
     font-size: var(--ha-font-size-m, 14px);
     line-height: 1.2;
-    color: #fff;
+    color: var(--pid-line-text-color, #fff);
     background: var(--pid-line-bg);
     overflow: hidden;
     text-overflow: ellipsis;
@@ -1158,7 +1158,10 @@ const STYLES = `
   .line--funicular { --pid-line-bg: var(--pid-color-funicular, #8b6d4c); }
   .line--metro { --pid-line-bg: var(--pid-color-metro, #555555); }
   .line--metro-a { --pid-line-bg: var(--pid-color-metro-a, #00a562); }
-  .line--metro-b { --pid-line-bg: var(--pid-color-metro-b, #f8b322); color: #1d1d1b; }
+  .line--metro-b {
+    --pid-line-bg: var(--pid-color-metro-b, #f8b322);
+    color: var(--pid-color-metro-b-text, #1d1d1b);
+  }
   .line--metro-c { --pid-line-bg: var(--pid-color-metro-c, #cf003d); }
   .line--night {
     --pid-line-bg: var(--pid-color-night, #1d1d1b);
@@ -1222,7 +1225,8 @@ const STYLES = `
     font-weight: var(--ha-font-weight-bold, 700);
     line-height: 1.3;
   }
-  .badge.early { background: var(--info-color, #039be5); color: #fff; }
+  /* Dark text: white on the default info blue is only about 3:1. */
+  .badge.early { background: var(--info-color, #039be5); color: #1d1d1b; }
   .badge.late { background: var(--warning-color, #ffa600); color: #1d1d1b; }
   .badge.severe { background: var(--error-color, #db4437); color: #fff; }
   .canceled .headsign, .canceled .time-cell { text-decoration: line-through; }
