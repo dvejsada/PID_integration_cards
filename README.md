@@ -79,6 +79,9 @@ devices:
 | `show_platform`  | `true` with 2+ boards    | Show the platform column. |
 | `hide_departed`  | `true`                   | Hide departures that have already left. |
 | `compact`        | `false`                  | One line per departure, smaller rows. |
+| `tap_action`     | `more-info`              | [Action](https://www.home-assistant.io/dashboards/actions/) when a departure is tapped. The entity is the departure's sensor. |
+| `hold_action`    | none                     | Action when a departure is held for half a second. |
+| `double_tap_action` | none                  | Action when a departure is double tapped. |
 
 ### Examples
 
@@ -113,6 +116,19 @@ lines: [9, 22, A]
 ```
 
 The card filters the departures the integration provides, which are as many as the *number of departures* set in the integration. When the selected lines run rarely, the next departures may all be of other lines, and the card then says *No upcoming departures of the selected lines*. Increase the number of departures in the integration to look further ahead.
+
+Rows that open another dashboard on tap and do nothing else, e.g. on a wall panel:
+
+```yaml
+type: custom:pid-departures-card
+devices:
+  - 3f1c5e0d9a7b4c2e8d6f1a2b3c4d5e6f
+tap_action:
+  action: navigate
+  navigation_path: /dashboard-transport/0
+```
+
+With `tap_action: {action: none}` and no other action the rows are not clickable at all.
 
 A timetable-style board with scheduled times only:
 
