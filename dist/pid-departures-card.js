@@ -21,6 +21,13 @@ const TICK_MS = 15 * 1000;
 const DEPARTED_GRACE_MS = 30 * 1000;
 // Three missed polls in a row mean the shown data can no longer be trusted.
 const STALE_AFTER_MS = 3 * 60 * 1000;
+// Gesture timing of Home Assistant's own action handler.
+const HOLD_MS = 500;
+const DOUBLE_TAP_MS = 250;
+// A press that moves further is a scroll, not a hold.
+const HOLD_MOVE_PX = 10;
+// The click that ends a hold follows its pointerup at once.
+const CLICK_AFTER_RELEASE_MS = 1000;
 
 const DEFAULTS = {
   time_format: "both",
@@ -69,6 +76,10 @@ const TRANSLATIONS = {
       show_platform: "Show platform",
       hide_departed: "Hide departed",
       compact: "Compact layout",
+      interactions: "Interactions",
+      tap_action: "Tap action",
+      hold_action: "Hold action",
+      double_tap_action: "Double tap action",
       lines: "Show only lines (e.g. 9, 22, A)",
       exclude_lines: "Hide lines",
     },
@@ -110,6 +121,10 @@ const TRANSLATIONS = {
       show_platform: "Zobrazit nástupiště",
       hide_departed: "Skrýt odjeté spoje",
       compact: "Kompaktní rozložení",
+      interactions: "Interakce",
+      tap_action: "Akce při klepnutí",
+      hold_action: "Akce při podržení",
+      double_tap_action: "Akce při dvojitém klepnutí",
       lines: "Zobrazit pouze linky (např. 9, 22, A)",
       exclude_lines: "Skrýt linky",
     },
@@ -151,6 +166,10 @@ const TRANSLATIONS = {
       show_platform: "Zobraziť nástupište",
       hide_departed: "Skryť odídené spoje",
       compact: "Kompaktné rozloženie",
+      interactions: "Interakcie",
+      tap_action: "Akcia pri ťuknutí",
+      hold_action: "Akcia pri podržaní",
+      double_tap_action: "Akcia pri dvojitom ťuknutí",
       lines: "Zobraziť iba linky (napr. 9, 22, A)",
       exclude_lines: "Skryť linky",
     },
@@ -192,6 +211,10 @@ const TRANSLATIONS = {
       show_platform: "Steig anzeigen",
       hide_departed: "Abgefahrene ausblenden",
       compact: "Kompaktes Layout",
+      interactions: "Interaktionen",
+      tap_action: "Tippen-Aktion",
+      hold_action: "Halten-Aktion",
+      double_tap_action: "Doppeltippen-Aktion",
       lines: "Nur Linien anzeigen (z. B. 9, 22, A)",
       exclude_lines: "Linien ausblenden",
     },
@@ -304,6 +327,11 @@ function commonTitle(names) {
   return prefix.length ? prefix.join(" ") : unique.join(" · ");
 }
 
+/** Same as Home Assistant's hasAction: configured and not "none". */
+function hasAction(actionConfig) {
+  return actionConfig !== undefined && actionConfig !== null && actionConfig.action !== "none";
+}
+
 function lineClass(attrs) {
   const type = attrs.route_type;
   if (type === "metro") {
@@ -323,6 +351,8 @@ class PidDeparturesCard extends HTMLElement {
     this._devicesRef = undefined;
     this._watched = [];
     this._infoExpanded = false;
+    this._press = null;
+    this._pendingTap = null;
   }
 
   static getConfigElement() {
@@ -385,6 +415,8 @@ class PidDeparturesCard extends HTMLElement {
 
   disconnectedCallback() {
     window.clearInterval(this._timer);
+    this._cancelPress();
+    this._cancelPendingTap();
     document.removeEventListener("visibilitychange", this._onVisible);
   }
 
@@ -477,13 +509,19 @@ class PidDeparturesCard extends HTMLElement {
       style.textContent = STYLES;
       this._card = document.createElement("ha-card");
       this.shadowRoot.append(style, this._card);
+      this._listen(this._card);
     }
 
     this._shownRows = shownRows;
     this._card.classList.toggle("compact", config.compact);
+    // Holding or double clicking a row must not select its text.
+    this._card.classList.toggle("no-select", hasAction(config.hold_action) || hasAction(config.double_tap_action));
 
-    // Re-rendering replaces the rows, keep keyboard focus on the same departure.
-    const focused = this.shadowRoot.activeElement?.dataset?.entity;
+    // Re-rendering replaces the rows and the service alert, keep keyboard focus
+    // on the same departure or on the alert.
+    const active = this.shadowRoot.activeElement;
+    const focused = active?.dataset?.entity;
+    const infotextFocused = !!active?.classList?.contains("infotext");
 
     // Every row is a subgrid of this grid, so a column has the same width in all
     // rows: a delay badge or a long label never shifts the neighbouring rows.
@@ -503,22 +541,208 @@ class PidDeparturesCard extends HTMLElement {
     `;
 
     if (focused) {
-      this._card.querySelector(`.row[data-entity="${CSS.escape(focused)}"]`)?.focus();
+      this._card.querySelector(`[data-entity="${CSS.escape(focused)}"][tabindex]`)?.focus();
+    } else if (infotextFocused) {
+      this._card.querySelector(".infotext")?.focus();
     }
+  }
 
-    this._card.querySelectorAll(".row").forEach((row) => {
-      row.addEventListener("click", () => this._moreInfo(row.dataset.entity));
-      row.addEventListener("keydown", (ev) => {
-        if (ev.key === "Enter" || ev.key === " ") {
-          ev.preventDefault();
-          this._moreInfo(row.dataset.entity);
-        }
-      });
+  /** Whether tapping, holding or double tapping a row does anything. */
+  _rowsInteractive() {
+    const c = this._config;
+    return this._tapRuns() || hasAction(c.hold_action) || hasAction(c.double_tap_action);
+  }
+
+  /** Whether a tap runs an action. An unset tap action means more-info, like on HA's own cards. */
+  _tapRuns() {
+    const tap = this._config.tap_action;
+    return tap === undefined || hasAction(tap);
+  }
+
+  /**
+   * Pointer and keyboard handling for the rows and the service alert.
+   *
+   * The listeners sit on ha-card, which is never replaced, because the rows
+   * are rebuilt on every render: a press may start on one row element and end
+   * on its replacement. Presses are tracked by entity ID for the same reason.
+   */
+  _listen(card) {
+    card.addEventListener("pointerdown", (ev) => {
+      const row = this._rowFor(ev);
+      this._cancelPress();
+      if (!row || (ev.pointerType === "mouse" && ev.button !== 0)) return;
+      // Touch pointers are captured by the row they went down on. The row is
+      // replaced on every render, and a pointerup sent to a removed row would
+      // never reach the card, leaving the hold timer running. Without the
+      // capture the pointerup goes to whatever row is under the finger.
+      if (ev.target.hasPointerCapture?.(ev.pointerId)) ev.target.releasePointerCapture(ev.pointerId);
+      const press = {
+        entity: row.dataset.entity,
+        pointerId: ev.pointerId,
+        pointerType: ev.pointerType,
+        x: ev.clientX,
+        y: ev.clientY,
+        held: false,
+        timer: null,
+      };
+      if (hasAction(this._config.hold_action)) {
+        press.timer = window.setTimeout(() => {
+          press.held = true;
+          // A tap still waiting for a possible double tap happened first.
+          this._flushPendingTap();
+          this._fireAction(press.entity, "hold");
+        }, HOLD_MS);
+      }
+      this._press = press;
+      // On the window: the finger may leave the card while pressing.
+      window.addEventListener("pointermove", this._onPointerMove, true);
+      window.addEventListener("pointerup", this._onPointerUp, true);
+      window.addEventListener("pointercancel", this._onPointerCancel, true);
     });
-    this._card.querySelector(".infotext")?.addEventListener("click", () => {
-      this._infoExpanded = !this._infoExpanded;
-      this._render();
+    // Only the pointer that started the press counts, not a second finger.
+    const ownPointer = (ev) => this._press && ev.pointerId === this._press.pointerId;
+    this._onPointerMove = (ev) => {
+      const press = this._press;
+      if (ownPointer(ev) && !press.held
+        && Math.hypot(ev.clientX - press.x, ev.clientY - press.y) > HOLD_MOVE_PX) {
+        window.clearTimeout(press.timer);
+      }
+    };
+    this._onPointerUp = (ev) => {
+      if (!ownPointer(ev)) return;
+      window.clearTimeout(this._press.timer);
+      this._press.releasedAt ??= performance.now();
+      this._stopWatchingPress();
+    };
+    this._onPointerCancel = (ev) => {
+      if (ownPointer(ev)) this._cancelPress();
+    };
+    card.addEventListener("pointerup", this._onPointerUp);
+    card.addEventListener("pointercancel", this._onPointerCancel);
+    // A long press on a touch screen would open the context menu instead.
+    // A right click with the mouse keeps it.
+    card.addEventListener("contextmenu", (ev) => {
+      if (this._press && this._press.pointerType !== "mouse" && hasAction(this._config.hold_action)) {
+        ev.preventDefault();
+      }
     });
+
+    card.addEventListener("click", (ev) => {
+      if (ev.target.closest(".infotext")) {
+        this._toggleInfotext();
+        return;
+      }
+      const row = this._rowFor(ev);
+      if (!row) return;
+      const press = this._press;
+      this._press = null;
+      this._stopWatchingPress();
+      // The hold already ran its action. Only for the click that ends this
+      // press: a press released outside the card leaves no click, and a later
+      // click without a pointer press (e.g. from a screen reader) is a tap.
+      if (press?.held && press.releasedAt !== undefined
+        && performance.now() - press.releasedAt < CLICK_AFTER_RELEASE_MS) return;
+      this._tap(row.dataset.entity);
+    });
+
+    card.addEventListener("keydown", (ev) => {
+      if (ev.key !== "Enter" && ev.key !== " ") return;
+      // Leave shortcuts with modifiers to the browser and Home Assistant.
+      if (ev.ctrlKey || ev.altKey || ev.metaKey) return;
+      // The keyboard has no hold or double tap, like on Home Assistant's own
+      // cards: rows only take the key when a tap does something.
+      const row = this._tapRuns() ? this._rowFor(ev) : null;
+      const target = ev.target.closest(".infotext") || row;
+      if (!target) return;
+      ev.preventDefault();
+      // A held key repeats keydown, act only once.
+      if (ev.repeat) return;
+      if (target.classList.contains("infotext")) {
+        this._toggleInfotext();
+        return;
+      }
+      this._fireAction(row.dataset.entity, "tap");
+    });
+  }
+
+  _rowFor(ev) {
+    if (!this._rowsInteractive()) return null;
+    return ev.target.closest?.(".row[data-entity]") || null;
+  }
+
+  _tap(entityId) {
+    if (!hasAction(this._config.double_tap_action)) {
+      this._fireAction(entityId, "tap");
+      return;
+    }
+    // Wait whether a second tap follows, only when a double tap does something.
+    const pending = this._pendingTap;
+    if (pending && pending.entity === entityId) {
+      this._cancelPendingTap();
+      this._fireAction(entityId, "double_tap");
+      return;
+    }
+    this._flushPendingTap();
+    this._pendingTap = {
+      entity: entityId,
+      timer: window.setTimeout(() => {
+        this._pendingTap = null;
+        this._fireAction(entityId, "tap");
+      }, DOUBLE_TAP_MS),
+    };
+  }
+
+  _cancelPress() {
+    window.clearTimeout(this._press?.timer);
+    this._press = null;
+    this._stopWatchingPress();
+  }
+
+  _stopWatchingPress() {
+    if (!this._onPointerUp) return;
+    window.removeEventListener("pointermove", this._onPointerMove, true);
+    window.removeEventListener("pointerup", this._onPointerUp, true);
+    window.removeEventListener("pointercancel", this._onPointerCancel, true);
+  }
+
+  /** Runs a tap that is waiting for a possible double tap right away. */
+  _flushPendingTap() {
+    const pending = this._pendingTap;
+    if (!pending) return;
+    this._cancelPendingTap();
+    this._fireAction(pending.entity, "tap");
+  }
+
+  _cancelPendingTap() {
+    window.clearTimeout(this._pendingTap?.timer);
+    this._pendingTap = null;
+  }
+
+  _toggleInfotext() {
+    this._infoExpanded = !this._infoExpanded;
+    this._render();
+  }
+
+  /**
+   * Lets Home Assistant run the configured action, as for its own cards:
+   * more-info by default, confirmation, navigate, perform-action and so on.
+   */
+  _fireAction(entityId, action) {
+    const c = this._config;
+    if (action === "tap" && c.tap_action !== undefined && !hasAction(c.tap_action)) return;
+    this.dispatchEvent(new CustomEvent("hass-action", {
+      bubbles: true,
+      composed: true,
+      detail: {
+        config: {
+          entity: entityId,
+          tap_action: c.tap_action,
+          hold_action: c.hold_action,
+          double_tap_action: c.double_tap_action,
+        },
+        action,
+      },
+    }));
   }
 
   /**
@@ -648,19 +872,19 @@ class PidDeparturesCard extends HTMLElement {
     const soon = !a.is_canceled && (a.is_at_stop || diffMs < 2 * 60000);
     const label = [typeLabel, a.route_name, a.trip_headsign, a.stop_platform && `${t.platform} ${a.stop_platform}`,
       time, countdown].filter(Boolean).join(", ");
+    const interactive = this._rowsInteractive();
+    // Only focusable when the keyboard can do something: it can only tap.
+    const attrs = interactive && this._tapRuns()
+      ? `role="button" tabindex="0" aria-label="${escapeHtml(label)}"`
+      : `role="group" aria-label="${escapeHtml(label)}"`;
 
     return `
-      <div class="row ${a.is_canceled ? "canceled" : ""} ${soon ? "soon" : ""}"
-           data-entity="${escapeHtml(d.entityId)}" role="button" tabindex="0" aria-label="${escapeHtml(label)}">
+      <div class="row ${interactive ? "interactive" : ""} ${a.is_canceled ? "canceled" : ""} ${soon ? "soon" : ""}"
+           data-entity="${escapeHtml(d.entityId)}" ${attrs}>
         ${columns.map((c) => `<div class="cell ${c}-cell">${cells[c]}</div>`).join("")}
       </div>`;
   }
 
-  _moreInfo(entityId) {
-    this.dispatchEvent(new CustomEvent("hass-more-info", {
-      detail: { entityId }, bubbles: true, composed: true,
-    }));
-  }
 }
 
 const STYLES = `
@@ -733,10 +957,25 @@ const STYLES = `
     padding: 6px 8px;
     box-sizing: border-box;
     border-radius: 8px;
-    cursor: pointer;
     outline: none;
   }
-  .row:hover, .row:focus-visible { background: var(--secondary-background-color); }
+  .row.interactive {
+    cursor: pointer;
+    /* No double-tap zoom, a double tap may be an action. Scrolling and pinch zoom stay. */
+    touch-action: manipulation;
+    transition: background-color 180ms ease-in-out;
+  }
+  .row.interactive:hover, .row.interactive:focus-visible { background: var(--secondary-background-color); }
+  /* A long press must not select text or open the callout on touch screens. */
+  .no-select .row.interactive { user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+  .infotext:focus-visible { outline: 2px solid var(--warning-color); outline-offset: -2px; }
+  @media (prefers-reduced-motion: reduce) {
+    .row.interactive { transition: none; }
+  }
+  /* High contrast mode ignores background colours, the focus needs an outline. */
+  @media (forced-colors: active) {
+    .row.interactive:focus-visible { outline: 2px solid CanvasText; outline-offset: -2px; }
+  }
   .row + .row { border-top: 1px solid var(--divider-color); }
   .cell { min-width: 0; }
   .line-cell { grid-column: line; display: flex; }
@@ -954,6 +1193,9 @@ class PidDeparturesCardEditor extends HTMLElement {
     if (config.show_platform === (config.devices || []).length > 1) delete config.show_platform;
     if (!config.title) delete config.title;
     if (!config.max_departures) delete config.max_departures;
+    for (const key of ["tap_action", "hold_action", "double_tap_action"]) {
+      if (!config[key]) delete config[key];
+    }
     this._typedLines = {};
     for (const key of ["lines", "exclude_lines"]) {
       this._typedLines[key] = value[key] ?? "";
@@ -1012,6 +1254,18 @@ function editorSchema(t) {
       schema: [
         "show_header", "show_infotext", "show_delay", "show_platform", "hide_departed", "compact",
       ].map((name) => ({ name, selector: { boolean: {} } })),
+    },
+    {
+      type: "expandable",
+      name: "",
+      flatten: true,
+      title: t.interactions,
+      icon: "mdi:gesture-tap",
+      schema: [
+        { name: "tap_action", selector: { ui_action: { default_action: "more-info" } } },
+        { name: "hold_action", selector: { ui_action: { default_action: "none" } } },
+        { name: "double_tap_action", selector: { ui_action: { default_action: "none" } } },
+      ],
     },
   ];
 }

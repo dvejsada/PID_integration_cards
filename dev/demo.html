@@ -153,6 +153,7 @@ const SCENARIOS = [
   { title: "No departures (night)", config: { devices: ["plananska_a"] }, emptyBoards: ["plananska_a"] },
   { title: "Only lines B and 8", config: { devices: ["palmovka_a", "palmovka_b"], lines: ["B", 8] } },
   { title: "No departure of the selected lines", config: { devices: ["plananska_a"], lines: "9, 26" } },
+  { title: "Rows not clickable (tap_action: none)", config: { devices: ["palmovka_a"], tap_action: { action: "none" } } },
   { title: "No board selected", config: {} },
 ];
 
@@ -182,7 +183,7 @@ function update() {
   }
 }
 document.querySelectorAll(".toolbar input, .toolbar select").forEach((el) => el.addEventListener("change", update));
-document.addEventListener("hass-more-info", (ev) => console.log("more-info", ev.detail.entityId));
+document.addEventListener("hass-action", (ev) => console.log("hass-action", ev.detail.action, ev.detail.config));
 update();
 </script>
 </body>

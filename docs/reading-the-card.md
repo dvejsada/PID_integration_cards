@@ -70,4 +70,4 @@ When PID publishes a service alert (infotext) for the stop, it is shown in an or
 
 ## Details
 
-Tap a departure to open its details with all the data the integration provides, e.g. the last stop the vehicle passed.
+Tap a departure to open its details with all the data the integration provides, e.g. the last stop the vehicle passed. Tapping, holding and double tapping can run other [actions](https://www.home-assistant.io/dashboards/actions/) instead, set by `tap_action`, `hold_action` and `double_tap_action` (in the editor under *Interactions*).
