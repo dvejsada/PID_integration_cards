@@ -38,6 +38,7 @@ const TRANSLATIONS = {
     at_stop: "at stop",
     canceled: "Canceled",
     no_departures: "No upcoming departures",
+    no_matching: "No upcoming departures of the selected lines",
     no_board: "Select a departure board in the card configuration.",
     board_not_found: "Departure board not found. Check the card configuration.",
     stale: "Not updated since {time}",
@@ -68,6 +69,8 @@ const TRANSLATIONS = {
       show_platform: "Show platform",
       hide_departed: "Hide departed",
       compact: "Compact layout",
+      lines: "Show only lines (e.g. 9, 22, A)",
+      exclude_lines: "Hide lines",
     },
   },
   cs: {
@@ -76,6 +79,7 @@ const TRANSLATIONS = {
     at_stop: "v zastávce",
     canceled: "Zrušeno",
     no_departures: "Žádné nadcházející odjezdy",
+    no_matching: "Žádné nadcházející odjezdy vybraných linek",
     no_board: "V nastavení karty vyberte odjezdovou tabuli.",
     board_not_found: "Odjezdová tabule nebyla nalezena. Zkontrolujte nastavení karty.",
     stale: "Neaktualizováno od {time}",
@@ -106,6 +110,8 @@ const TRANSLATIONS = {
       show_platform: "Zobrazit nástupiště",
       hide_departed: "Skrýt odjeté spoje",
       compact: "Kompaktní rozložení",
+      lines: "Zobrazit pouze linky (např. 9, 22, A)",
+      exclude_lines: "Skrýt linky",
     },
   },
   sk: {
@@ -114,6 +120,7 @@ const TRANSLATIONS = {
     at_stop: "na zastávke",
     canceled: "Zrušené",
     no_departures: "Žiadne nadchádzajúce odchody",
+    no_matching: "Žiadne nadchádzajúce odchody vybraných liniek",
     no_board: "V nastavení karty vyberte odchodovú tabuľu.",
     board_not_found: "Odchodová tabuľa nebola nájdená. Skontrolujte nastavenie karty.",
     stale: "Neaktualizované od {time}",
@@ -144,6 +151,8 @@ const TRANSLATIONS = {
       show_platform: "Zobraziť nástupište",
       hide_departed: "Skryť odídené spoje",
       compact: "Kompaktné rozloženie",
+      lines: "Zobraziť iba linky (napr. 9, 22, A)",
+      exclude_lines: "Skryť linky",
     },
   },
   de: {
@@ -152,6 +161,7 @@ const TRANSLATIONS = {
     at_stop: "am Steig",
     canceled: "Fällt aus",
     no_departures: "Keine anstehenden Abfahrten",
+    no_matching: "Keine anstehenden Abfahrten der gewählten Linien",
     no_board: "Wähle in der Kartenkonfiguration eine Abfahrtstafel aus.",
     board_not_found: "Abfahrtstafel nicht gefunden. Prüfe die Kartenkonfiguration.",
     stale: "Nicht aktualisiert seit {time}",
@@ -182,6 +192,8 @@ const TRANSLATIONS = {
       show_platform: "Steig anzeigen",
       hide_departed: "Abgefahrene ausblenden",
       compact: "Kompaktes Layout",
+      lines: "Nur Linien anzeigen (z. B. 9, 22, A)",
+      exclude_lines: "Linien ausblenden",
     },
   },
 };
@@ -218,6 +230,18 @@ function timeFormatter(hass) {
   } catch (_err) {
     return new Intl.DateTimeFormat(undefined, options);
   }
+}
+
+/**
+ * Line names from a `lines` or `exclude_lines` option, lower-cased for matching.
+ * Takes a list (`[9, "A"]`) or a string (`"9, 22 A"`), as the editor writes it.
+ */
+function parseLines(value) {
+  const items = Array.isArray(value) ? value : [value];
+  return items
+    .flatMap((item) => String(item ?? "").split(/[\s,;]+/))
+    .map((line) => line.trim().toLowerCase())
+    .filter(Boolean);
 }
 
 function normalizeConfig(config) {
@@ -309,6 +333,8 @@ class PidDeparturesCard extends HTMLElement {
 
   setConfig(config) {
     this._config = normalizeConfig(config);
+    this._onlyLines = new Set(parseLines(this._config.lines));
+    this._excludedLines = new Set(parseLines(this._config.exclude_lines));
     this._entitiesRef = undefined;
     this._render();
   }
@@ -372,6 +398,17 @@ class PidDeparturesCard extends HTMLElement {
     return { grid_columns: 4, grid_min_columns: 2 };
   }
 
+  /** Whether a departure passes the `lines` and `exclude_lines` options. */
+  _matchesLineFilter(attrs) {
+    const line = String(attrs.route_name ?? "").trim().toLowerCase();
+    if (this._onlyLines.size && !this._onlyLines.has(line)) return false;
+    return !this._excludedLines.has(line);
+  }
+
+  /**
+   * Departures to show, sorted by time. `filteredOut` tells whether the line
+   * filter hid every departure that would otherwise be shown.
+   */
   _departures(now) {
     const departures = [];
     for (const board of this._boards) {
@@ -388,10 +425,14 @@ class PidDeparturesCard extends HTMLElement {
 
     departures.sort((x, y) => x.estimated - y.estimated);
 
-    const visible = this._config.hide_departed
+    const upcoming = this._config.hide_departed
       ? departures.filter((d) => d.attrs.is_at_stop || d.estimated - now > -DEPARTED_GRACE_MS)
       : departures;
-    return this._config.max_departures ? visible.slice(0, this._config.max_departures) : visible;
+    const visible = upcoming.filter((d) => this._matchesLineFilter(d.attrs));
+    return {
+      list: this._config.max_departures ? visible.slice(0, this._config.max_departures) : visible,
+      filteredOut: upcoming.length > 0 && visible.length === 0,
+    };
   }
 
   _render() {
@@ -409,8 +450,10 @@ class PidDeparturesCard extends HTMLElement {
       body = `<div class="message warning">${escapeHtml(t.board_not_found)}</div>`;
     } else {
       const departures = this._departures(now);
-      if (departures.length) {
-        body = departures.map((d) => this._renderRow(d, now, t, fmt, columns)).join("");
+      if (departures.list.length) {
+        body = departures.list.map((d) => this._renderRow(d, now, t, fmt, columns)).join("");
+      } else if (departures.filteredOut) {
+        body = `<div class="message">${escapeHtml(t.no_matching)}</div>`;
       } else if (this._boards.filter((b) => b.found).every((b) => this._isDown(b))) {
         body = `<div class="message warning">${escapeHtml(t.unavailable_body)}</div>`;
       } else {
@@ -872,6 +915,9 @@ class PidDeparturesCardEditor extends HTMLElement {
     this._form.data = {
       ...this._config,
       show_platform: this._config.show_platform ?? this._config.devices.length > 1,
+      // Edited as text, "9, 22, A"; YAML may have a list.
+      lines: linesText(this._config.lines),
+      exclude_lines: linesText(this._config.exclude_lines),
     };
   }
 
@@ -885,11 +931,19 @@ class PidDeparturesCardEditor extends HTMLElement {
     if (config.show_platform === (config.devices || []).length > 1) delete config.show_platform;
     if (!config.title) delete config.title;
     if (!config.max_departures) delete config.max_departures;
+    for (const key of ["lines", "exclude_lines"]) {
+      if (!parseLines(config[key]).length) delete config[key];
+    }
     this._config = normalizeConfig(config);
     this.dispatchEvent(new CustomEvent("config-changed", {
       detail: { config }, bubbles: true, composed: true,
     }));
   }
+}
+
+function linesText(value) {
+  if (value === undefined || value === null) return "";
+  return Array.isArray(value) ? value.join(", ") : String(value);
 }
 
 function editorSchema(t) {
@@ -900,6 +954,14 @@ function editorSchema(t) {
       selector: { device: { multiple: true, filter: { integration: DOMAIN } } },
     },
     { name: "title", selector: { text: {} } },
+    {
+      type: "grid",
+      name: "",
+      schema: [
+        { name: "lines", selector: { text: {} } },
+        { name: "exclude_lines", selector: { text: {} } },
+      ],
+    },
     {
       type: "grid",
       name: "",

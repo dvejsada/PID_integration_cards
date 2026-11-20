@@ -70,6 +70,8 @@ devices:
 | `devices`        | *required*               | Departure boards to show. With more than one, their departures are merged and sorted by time. |
 | `title`          | stop name                | Card title. |
 | `max_departures` | all                      | Maximum number of departures. The upper limit is the *number of departures* set in the integration. |
+| `lines`          | all                      | Show only these lines, e.g. `[9, 22, A]` or `"9, 22, A"`. Case does not matter. |
+| `exclude_lines`  | none                     | Hide these lines. |
 | `time_format`    | `both`                   | `both`: countdown and scheduled time, `relative`: countdown only, `absolute`: scheduled time only. |
 | `show_header`    | `true`                   | Show the title. |
 | `show_infotext`  | `true`                   | Show the service alert of the stop. Tap it to read the whole text. |
@@ -100,6 +102,17 @@ compact: true
 show_header: false
 max_departures: 5
 ```
+
+Only trams 9 and 22 and metro A:
+
+```yaml
+type: custom:pid-departures-card
+devices:
+  - 3f1c5e0d9a7b4c2e8d6f1a2b3c4d5e6f
+lines: [9, 22, A]
+```
+
+The card filters the departures the integration provides, which are as many as the *number of departures* set in the integration. When the selected lines run rarely, the next departures may all be of other lines, and the card then says *No upcoming departures of the selected lines*. Increase the number of departures in the integration to look further ahead.
 
 A timetable-style board with scheduled times only:
 

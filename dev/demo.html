@@ -151,6 +151,8 @@ const SCENARIOS = [
   { title: "Narrow card (300 px)", width: 300, config: { devices: ["plananska_a"] } },
   { title: "API unavailable", config: { devices: ["plananska_a"] }, outage: true },
   { title: "No departures (night)", config: { devices: ["plananska_a"] }, emptyBoards: ["plananska_a"] },
+  { title: "Only lines B and 8", config: { devices: ["palmovka_a", "palmovka_b"], lines: ["B", 8] } },
+  { title: "No departure of the selected lines", config: { devices: ["plananska_a"], lines: "9, 26" } },
   { title: "No board selected", config: {} },
 ];
 
