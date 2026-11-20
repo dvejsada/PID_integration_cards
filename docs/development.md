@@ -12,6 +12,17 @@ The page provides minimal stand-ins for the Home Assistant elements the card use
 
 To try the card in Home Assistant, copy the file to `config/www/` and add it as a resource, see the manual installation in the [README](../README.md#manual).
 
+## Screenshots
+
+The README images in `assets/` are taken from the demo page by [`dev/screenshots.js`](../dev/screenshots.js). Regenerate them after a visual change:
+
+```bash
+npm install --no-save playwright && npx playwright install chromium
+node dev/screenshots.js
+```
+
+`preview.png` shows a light card, a dark card in Czech with a service alert and a dark compact card with stale data; `layouts.png` shows the layouts of the demo page. The times in the images are the time the script runs.
+
 ## How the card finds its data
 
 The card is configured with departure board **devices**, not entities, because the entity IDs are generated from translated names and differ per language. It looks up the entities of the selected devices in `hass.entities` by their translation key:
