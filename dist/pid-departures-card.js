@@ -549,9 +549,13 @@ class PidDeparturesCard extends HTMLElement {
   /** Whether tapping, holding or double tapping a row does anything. */
   _rowsInteractive() {
     const c = this._config;
-    // An unset tap action means more-info, like on Home Assistant's own cards.
-    return c.tap_action === undefined || hasAction(c.tap_action)
-      || hasAction(c.hold_action) || hasAction(c.double_tap_action);
+    return this._tapRuns() || hasAction(c.hold_action) || hasAction(c.double_tap_action);
+  }
+
+  /** Whether a tap runs an action. An unset tap action means more-info, like on HA's own cards. */
+  _tapRuns() {
+    const tap = this._config.tap_action;
+    return tap === undefined || hasAction(tap);
   }
 
   /**
@@ -566,7 +570,19 @@ class PidDeparturesCard extends HTMLElement {
       const row = this._rowFor(ev);
       this._cancelPress();
       if (!row || (ev.pointerType === "mouse" && ev.button !== 0)) return;
-      const press = { entity: row.dataset.entity, x: ev.clientX, y: ev.clientY, held: false, timer: null };
+      // Touch pointers are captured by the row they went down on. The row is
+      // replaced on every render, and a pointerup sent to a removed row would
+      // never reach the card, leaving the hold timer running. Without the
+      // capture the pointerup goes to whatever row is under the finger.
+      if (ev.target.hasPointerCapture?.(ev.pointerId)) ev.target.releasePointerCapture(ev.pointerId);
+      const press = {
+        entity: row.dataset.entity,
+        pointerType: ev.pointerType,
+        x: ev.clientX,
+        y: ev.clientY,
+        held: false,
+        timer: null,
+      };
       if (hasAction(this._config.hold_action)) {
         press.timer = window.setTimeout(() => {
           press.held = true;
@@ -576,6 +592,8 @@ class PidDeparturesCard extends HTMLElement {
         }, HOLD_MS);
       }
       this._press = press;
+      window.addEventListener("pointerup", this._onPointerUp, true);
+      window.addEventListener("pointercancel", this._onPointerCancel, true);
     });
     card.addEventListener("pointermove", (ev) => {
       const press = this._press;
@@ -584,15 +602,22 @@ class PidDeparturesCard extends HTMLElement {
         window.clearTimeout(press.timer);
       }
     });
-    card.addEventListener("pointercancel", () => this._cancelPress());
-    card.addEventListener("pointerup", () => {
+    // On the window too: a press can end outside the card.
+    this._onPointerUp = () => {
       if (!this._press) return;
       window.clearTimeout(this._press.timer);
-      this._press.releasedAt = performance.now();
-    });
-    // A long press on touch screens would open the context menu instead.
+      this._press.releasedAt ??= performance.now();
+      this._stopWatchingPress();
+    };
+    this._onPointerCancel = () => this._cancelPress();
+    card.addEventListener("pointerup", this._onPointerUp);
+    card.addEventListener("pointercancel", this._onPointerCancel);
+    // A long press on a touch screen would open the context menu instead.
+    // A right click with the mouse keeps it.
     card.addEventListener("contextmenu", (ev) => {
-      if (this._rowFor(ev) && hasAction(this._config.hold_action)) ev.preventDefault();
+      if (this._press && this._press.pointerType !== "mouse" && hasAction(this._config.hold_action)) {
+        ev.preventDefault();
+      }
     });
 
     card.addEventListener("click", (ev) => {
@@ -604,6 +629,7 @@ class PidDeparturesCard extends HTMLElement {
       if (!row) return;
       const press = this._press;
       this._press = null;
+      this._stopWatchingPress();
       // The hold already ran its action. Only for the click that ends this
       // press: a press released outside the card leaves no click, and a later
       // click without a pointer press (e.g. from a screen reader) is a tap.
@@ -616,7 +642,10 @@ class PidDeparturesCard extends HTMLElement {
       if (ev.key !== "Enter" && ev.key !== " ") return;
       // Leave shortcuts with modifiers to the browser and Home Assistant.
       if (ev.ctrlKey || ev.altKey || ev.metaKey) return;
-      const target = ev.target.closest(".infotext") || this._rowFor(ev);
+      // The keyboard has no hold or double tap, like on Home Assistant's own
+      // cards: rows only take the key when a tap does something.
+      const row = this._tapRuns() ? this._rowFor(ev) : null;
+      const target = ev.target.closest(".infotext") || row;
       if (!target) return;
       ev.preventDefault();
       // A held key repeats keydown, act only once.
@@ -625,8 +654,6 @@ class PidDeparturesCard extends HTMLElement {
         this._toggleInfotext();
         return;
       }
-      const row = target;
-      // The keyboard has no hold or double tap, like on Home Assistant's own cards.
       this._fireAction(row.dataset.entity, "tap");
     });
   }
@@ -661,6 +688,13 @@ class PidDeparturesCard extends HTMLElement {
   _cancelPress() {
     window.clearTimeout(this._press?.timer);
     this._press = null;
+    this._stopWatchingPress();
+  }
+
+  _stopWatchingPress() {
+    if (!this._onPointerUp) return;
+    window.removeEventListener("pointerup", this._onPointerUp, true);
+    window.removeEventListener("pointercancel", this._onPointerCancel, true);
   }
 
   /** Runs a tap that is waiting for a possible double tap right away. */
@@ -831,7 +865,8 @@ class PidDeparturesCard extends HTMLElement {
     const label = [typeLabel, a.route_name, a.trip_headsign, a.stop_platform && `${t.platform} ${a.stop_platform}`,
       time, countdown].filter(Boolean).join(", ");
     const interactive = this._rowsInteractive();
-    const attrs = interactive
+    // Only focusable when the keyboard can do something: it can only tap.
+    const attrs = interactive && this._tapRuns()
       ? `role="button" tabindex="0" aria-label="${escapeHtml(label)}"`
       : `role="group" aria-label="${escapeHtml(label)}"`;
 
