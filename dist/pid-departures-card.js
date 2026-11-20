@@ -233,15 +233,20 @@ function timeFormatter(hass) {
 }
 
 /**
- * Line names from a `lines` or `exclude_lines` option, lower-cased for matching.
- * Takes a list (`[9, "A"]`) or a string (`"9, 22 A"`), as the editor writes it.
+ * Line names from a `lines` or `exclude_lines` option.
+ * Takes a list (`[9, "A"]`) or a string (`"9, 22 A"`).
  */
-function parseLines(value) {
+function splitLines(value) {
   const items = Array.isArray(value) ? value : [value];
   return items
     .flatMap((item) => String(item ?? "").split(/[\s,;]+/))
-    .map((line) => line.trim().toLowerCase())
+    .map((line) => line.trim())
     .filter(Boolean);
+}
+
+/** Line names lower-cased for matching. */
+function parseLines(value) {
+  return splitLines(value).map((line) => line.toLowerCase());
 }
 
 function normalizeConfig(config) {
@@ -384,7 +389,11 @@ class PidDeparturesCard extends HTMLElement {
   }
 
   getCardSize() {
-    const rows = this._config?.max_departures || this._boards.reduce((n, b) => n + b.routeEntities.length, 0) || 3;
+    let rows = this._config?.max_departures || this._boards.reduce((n, b) => n + b.routeEntities.length, 0) || 3;
+    // A line filter usually leaves far fewer rows than there are departure
+    // sensors; size by what was last shown (at least one row for a message).
+    const filtered = this._onlyLines?.size || this._excludedLines?.size;
+    if (filtered && this._shownRows !== undefined) rows = Math.min(rows, Math.max(this._shownRows, 1));
     return (this._config?.show_header === false ? 0 : 1) + Math.ceil(rows * (this._config?.compact ? 0.8 : 1.2));
   }
 
@@ -444,12 +453,14 @@ class PidDeparturesCard extends HTMLElement {
 
     const columns = this._columns();
     let body;
+    let shownRows = 0;
     if (!config.devices.length) {
       body = `<div class="message">${escapeHtml(t.no_board)}</div>`;
     } else if (!this._boards.some((b) => b.found)) {
       body = `<div class="message warning">${escapeHtml(t.board_not_found)}</div>`;
     } else {
       const departures = this._departures(now);
+      shownRows = departures.list.length;
       if (departures.list.length) {
         body = departures.list.map((d) => this._renderRow(d, now, t, fmt, columns)).join("");
       } else if (departures.filteredOut) {
@@ -468,6 +479,7 @@ class PidDeparturesCard extends HTMLElement {
       this.shadowRoot.append(style, this._card);
     }
 
+    this._shownRows = shownRows;
     this._card.classList.toggle("compact", config.compact);
 
     // Re-rendering replaces the rows, keep keyboard focus on the same departure.
@@ -915,10 +927,21 @@ class PidDeparturesCardEditor extends HTMLElement {
     this._form.data = {
       ...this._config,
       show_platform: this._config.show_platform ?? this._config.devices.length > 1,
-      // Edited as text, "9, 22, A"; YAML may have a list.
-      lines: linesText(this._config.lines),
-      exclude_lines: linesText(this._config.exclude_lines),
+      // Edited as text, "9, 22, A", saved as a list.
+      lines: this._linesText("lines"),
+      exclude_lines: this._linesText("exclude_lines"),
     };
+  }
+
+  /**
+   * Text of a lines field. Keeps the text as typed while it means the same
+   * lines as the config, so separators and spaces do not vanish while typing.
+   */
+  _linesText(key) {
+    const typed = this._typedLines?.[key];
+    const configured = splitLines(this._config[key]);
+    if (typed !== undefined && sameLines(splitLines(typed), configured)) return typed;
+    return configured.join(", ");
   }
 
   _valueChanged(value) {
@@ -931,8 +954,12 @@ class PidDeparturesCardEditor extends HTMLElement {
     if (config.show_platform === (config.devices || []).length > 1) delete config.show_platform;
     if (!config.title) delete config.title;
     if (!config.max_departures) delete config.max_departures;
+    this._typedLines = {};
     for (const key of ["lines", "exclude_lines"]) {
-      if (!parseLines(config[key]).length) delete config[key];
+      this._typedLines[key] = value[key] ?? "";
+      const lines = splitLines(config[key]).map((line) => (/^[1-9]\d*$/.test(line) ? Number(line) : line));
+      if (lines.length) config[key] = lines;
+      else delete config[key];
     }
     this._config = normalizeConfig(config);
     this.dispatchEvent(new CustomEvent("config-changed", {
@@ -941,9 +968,8 @@ class PidDeparturesCardEditor extends HTMLElement {
   }
 }
 
-function linesText(value) {
-  if (value === undefined || value === null) return "";
-  return Array.isArray(value) ? value.join(", ") : String(value);
+function sameLines(a, b) {
+  return a.length === b.length && a.every((line, i) => line === b[i]);
 }
 
 function editorSchema(t) {
