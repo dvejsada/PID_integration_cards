@@ -1143,25 +1143,56 @@ const STYLES = `
     font-weight: var(--ha-font-weight-bold, 700);
     font-size: var(--ha-font-size-m, 14px);
     line-height: 1.2;
-    color: #fff;
+    color: var(--pid-line-fg, var(--pid-line-text-color, #fff));
     background: var(--pid-line-bg);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
   /* Approximation of the PID line colours, a theme can override them. */
-  .line--tram { --pid-line-bg: var(--pid-color-tram, #7a0603); }
-  .line--bus { --pid-line-bg: var(--pid-color-bus, #007da8); }
-  .line--trolleybus { --pid-line-bg: var(--pid-color-trolleybus, #80166f); }
-  .line--train { --pid-line-bg: var(--pid-color-train, #283583); }
-  .line--ferry { --pid-line-bg: var(--pid-color-ferry, #00a3c7); }
-  .line--funicular { --pid-line-bg: var(--pid-color-funicular, #8b6d4c); }
-  .line--metro { --pid-line-bg: var(--pid-color-metro, #555555); }
-  .line--metro-a { --pid-line-bg: var(--pid-color-metro-a, #00a562); }
-  .line--metro-b { --pid-line-bg: var(--pid-color-metro-b, #f8b322); color: #1d1d1b; }
-  .line--metro-c { --pid-line-bg: var(--pid-color-metro-c, #cf003d); }
+  .line--tram {
+    --pid-line-bg: var(--pid-color-tram, #7a0603);
+    --pid-line-fg: var(--pid-color-tram-text, var(--pid-line-text-color, #fff));
+  }
+  .line--bus {
+    --pid-line-bg: var(--pid-color-bus, #007da8);
+    --pid-line-fg: var(--pid-color-bus-text, var(--pid-line-text-color, #fff));
+  }
+  .line--trolleybus {
+    --pid-line-bg: var(--pid-color-trolleybus, #80166f);
+    --pid-line-fg: var(--pid-color-trolleybus-text, var(--pid-line-text-color, #fff));
+  }
+  .line--train {
+    --pid-line-bg: var(--pid-color-train, #283583);
+    --pid-line-fg: var(--pid-color-train-text, var(--pid-line-text-color, #fff));
+  }
+  .line--ferry {
+    --pid-line-bg: var(--pid-color-ferry, #00a3c7);
+    --pid-line-fg: var(--pid-color-ferry-text, var(--pid-line-text-color, #fff));
+  }
+  .line--funicular {
+    --pid-line-bg: var(--pid-color-funicular, #8b6d4c);
+    --pid-line-fg: var(--pid-color-funicular-text, var(--pid-line-text-color, #fff));
+  }
+  .line--metro {
+    --pid-line-bg: var(--pid-color-metro, #555555);
+    --pid-line-fg: var(--pid-color-metro-text, var(--pid-line-text-color, #fff));
+  }
+  .line--metro-a {
+    --pid-line-bg: var(--pid-color-metro-a, #00a562);
+    --pid-line-fg: var(--pid-color-metro-a-text, var(--pid-line-text-color, #fff));
+  }
+  .line--metro-b {
+    --pid-line-bg: var(--pid-color-metro-b, #f8b322);
+    --pid-line-fg: var(--pid-color-metro-b-text, #1d1d1b);
+  }
+  .line--metro-c {
+    --pid-line-bg: var(--pid-color-metro-c, #cf003d);
+    --pid-line-fg: var(--pid-color-metro-c-text, var(--pid-line-text-color, #fff));
+  }
   .line--night {
     --pid-line-bg: var(--pid-color-night, #1d1d1b);
+    --pid-line-fg: var(--pid-color-night-text, var(--pid-line-text-color, #fff));
     box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
   }
   .headsign {
@@ -1222,7 +1253,8 @@ const STYLES = `
     font-weight: var(--ha-font-weight-bold, 700);
     line-height: 1.3;
   }
-  .badge.early { background: var(--info-color, #039be5); color: #fff; }
+  /* Dark text: white on the default info blue is only about 3:1. */
+  .badge.early { background: var(--info-color, #039be5); color: var(--pid-delay-early-text-color, #1d1d1b); }
   .badge.late { background: var(--warning-color, #ffa600); color: #1d1d1b; }
   .badge.severe { background: var(--error-color, #db4437); color: #fff; }
   .canceled .headsign, .canceled .time-cell { text-decoration: line-through; }
