@@ -9,7 +9,7 @@
 - Text sizes, weights, corner radii and spacing follow Home Assistant's design tokens and font size scale, with the same values as before as fallbacks for older versions. To match Home Assistant's sizes the destination is 14 px instead of 15 px, the time 12 px instead of 13 px, the countdown bold, line badges 14 px with 4 px corners, and the compact title 20 px instead of 18 px.
 - The title is styled like the header of Home Assistant's own cards (`card-header` class, `ha-card-header-*` theme variables). For card-mod styles: the title elements are now `.card-header` and `.name` instead of `.header` and `.title`.
 - The early delay badge has dark text, white on the default info blue was hard to read.
-- New theme variables `pid-line-text-color` and `pid-color-metro-b-text` for the text colour of line badges.
+- New theme variables for the text colour of line badges: `pid-line-text-color` for all of them, and one per type (`pid-color-tram-text`, `pid-color-ferry-text`, `pid-color-metro-b-text`, …). `pid-delay-early-text-color` for the early delay badge.
 - The service alert can be expanded with the keyboard; the focused departure is outlined in high contrast mode; the hover effect respects *reduce motion*.
 
 - New options `lines` and `exclude_lines` to show only some lines, or to hide some, also in the visual editor. When no departure of the selected lines is left, the card says *No upcoming departures of the selected lines*.

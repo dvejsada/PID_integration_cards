@@ -25,8 +25,8 @@ The line badges use colours close to the PID ones. They can be changed by settin
 | `pid-color-ferry`      | `#00a3c7` | Ferries |
 | `pid-color-funicular`  | `#8b6d4c` | Petřín funicular |
 | `pid-color-night`      | `#1d1d1b` | Night lines of any type |
-| `pid-line-text-color`  | `#fff`    | Text of all line badges, except metro B |
-| `pid-color-metro-b-text` | `#1d1d1b` | Text of the metro B badge |
+
+Each colour has a matching text colour variable with `-text` appended, e.g. `pid-color-ferry-text` or `pid-color-night-text`. They default to `pid-line-text-color` (white), except `pid-color-metro-b-text`, which defaults to dark `#1d1d1b`. `pid-line-text-color` changes the text of all badges except metro B at once.
 
 Example theme in `configuration.yaml` (or a file in your `themes` folder):
 
@@ -38,19 +38,17 @@ frontend:
       pid-color-night: "#2b2b6b"
 ```
 
-Badges have white text, except metro B, which has dark text. When you change a background to a light colour, change the text colour with it, e.g. dark text on a lighter ferry colour:
+Badges have white text, except metro B, which has dark text. When you change a background to a light colour, change its text colour with it, e.g. dark text on a lighter ferry colour:
 
 ```yaml
 frontend:
   themes:
     My theme:
       pid-color-ferry: "#7fd3e6"
-      pid-line-text-color: "#1d1d1b"
+      pid-color-ferry-text: "#1d1d1b"
 ```
 
-`pid-line-text-color` applies to all badges except metro B, so pick one that works with all your line colours.
-
-The delay badges use the theme's `info-color` (early, dark text), `warning-color` (late, dark text) and `error-color` (5 minutes or more, white text).
+The delay badges use the theme's `info-color` (early), `warning-color` (late) and `error-color` (5 minutes or more). The early badge has dark text, which can be changed with `pid-delay-early-text-color` for a theme with a dark `info-color`.
 
 The press and hover effect of the departures is Home Assistant's ripple, its colour can be changed with `ha-ripple-color` (default: the secondary text colour).
 
