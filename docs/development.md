@@ -6,7 +6,7 @@ The card is a single JavaScript file, [`dist/pid-departures-card.js`](../dist/pi
 
 ## Previewing changes
 
-[`dev/demo.html`](../dev/demo.html) renders the card with mock data in several configurations and widths, without Home Assistant. Open it in a browser (directly from disk works) and use the toolbar to switch the theme, language and time format. It covers delays, cancellations, trips without real-time data, a vehicle at the stop, a service alert, stale data and a missing configuration.
+[`dev/demo.html`](../dev/demo.html) renders the card with mock data in several configurations and widths, without Home Assistant. Open it in a browser (directly from disk works) and use the toolbar to switch the theme, language, time format and Home Assistant's design tokens (off as before HA 2025.5, or on with a font size scale). It covers delays, cancellations, trips without real-time data, a vehicle at the stop, a service alert, stale data and a missing configuration.
 
 The page provides minimal stand-ins for the Home Assistant elements the card uses (`ha-card`, `ha-icon`) and a mock `hass` object shaped like the one Home Assistant passes to cards. The visual editor needs the real Home Assistant frontend and is not part of the demo.
 

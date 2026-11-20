@@ -21,6 +21,18 @@
     --card-background-color: #fff; --secondary-background-color: #e5e5e5; --primary-color: #03a9f4;
     --warning-color: #ffa600; --error-color: #db4437; --info-color: #039be5; --rgb-warning-color: 255, 166, 0;
   }
+  /* HA design tokens (2025.5+), switched on by the toolbar to check both paths. */
+  html.tokens {
+    --ha-font-size-scale: 1;
+    --ha-font-family-body: Roboto, Noto, sans-serif;
+    --ha-font-size-s: calc(12px * var(--ha-font-size-scale)); --ha-font-size-m: calc(14px * var(--ha-font-size-scale));
+    --ha-font-size-l: calc(16px * var(--ha-font-size-scale)); --ha-font-size-xl: calc(20px * var(--ha-font-size-scale));
+    --ha-font-size-2xl: calc(24px * var(--ha-font-size-scale));
+    --ha-font-weight-normal: 400; --ha-font-weight-medium: 500; --ha-font-weight-bold: 700;
+    --ha-line-height-condensed: 1.2;
+    --ha-border-radius-sm: 4px; --ha-border-radius-md: 8px;
+    --ha-space-1: 4px; --ha-space-2: 8px; --ha-space-3: 12px; --ha-space-4: 16px;
+  }
   body.dark {
     --primary-text-color: #e1e1e1; --secondary-text-color: #9b9b9b; --divider-color: rgba(225, 225, 225, .12);
     --card-background-color: #1c1c1c; --secondary-background-color: #282828;
@@ -55,6 +67,13 @@
   <label><input type="checkbox" id="dark"> Dark theme</label>
   <label>Language
     <select id="lang"><option>en</option><option>cs</option><option>sk</option><option>de</option></select>
+  </label>
+  <label>HA tokens
+    <select id="tokens">
+      <option value="">off (HA before 2025.5)</option>
+      <option value="1">on, font scale 1</option>
+      <option value="1.25">on, font scale 1.25</option>
+    </select>
   </label>
   <label>Time format
     <select id="tf"><option value="24">24 h</option><option value="12">12 h</option></select>
@@ -172,6 +191,9 @@ for (const s of SCENARIOS) {
 
 function update() {
   document.body.classList.toggle("dark", document.getElementById("dark").checked);
+  const tokens = document.getElementById("tokens").value;
+  document.documentElement.classList.toggle("tokens", !!tokens);
+  document.documentElement.style.setProperty("--ha-font-size-scale", tokens || "1");
   for (const { card, scenario } of cards) {
     card.hass = mockHass(BOARDS, {
       language: document.getElementById("lang").value,
