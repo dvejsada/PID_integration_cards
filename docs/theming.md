@@ -34,6 +34,8 @@ frontend:
 
 Badges have white text, except metro B, which has dark text.
 
+The press and hover effect of the departures is Home Assistant's ripple, its colour can be changed with `ha-ripple-color` (default: the secondary text colour).
+
 ## card-mod
 
 With [card-mod](https://github.com/thomasloven/lovelace-card-mod) the variables can also be set for a single card:

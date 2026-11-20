@@ -484,23 +484,23 @@ class PidDeparturesCard extends HTMLElement {
     const config = this._config;
 
     const columns = this._columns();
-    let body;
-    let shownRows = 0;
+    // Either the departure rows or a message instead of them.
+    let rows = [];
+    let message = "";
     if (!config.devices.length) {
-      body = `<div class="message">${escapeHtml(t.no_board)}</div>`;
+      message = `<div class="message">${escapeHtml(t.no_board)}</div>`;
     } else if (!this._boards.some((b) => b.found)) {
-      body = `<div class="message warning">${escapeHtml(t.board_not_found)}</div>`;
+      message = `<div class="message warning">${escapeHtml(t.board_not_found)}</div>`;
     } else {
       const departures = this._departures(now);
-      shownRows = departures.list.length;
       if (departures.list.length) {
-        body = departures.list.map((d) => this._renderRow(d, now, t, fmt, columns)).join("");
+        rows = departures.list.map((d) => this._rowModel(d, now, t, fmt, columns));
       } else if (departures.filteredOut) {
-        body = `<div class="message">${escapeHtml(t.no_matching)}</div>`;
+        message = `<div class="message">${escapeHtml(t.no_matching)}</div>`;
       } else if (this._boards.filter((b) => b.found).every((b) => this._isDown(b))) {
-        body = `<div class="message warning">${escapeHtml(t.unavailable_body)}</div>`;
+        message = `<div class="message warning">${escapeHtml(t.unavailable_body)}</div>`;
       } else {
-        body = `<div class="message">${escapeHtml(t.no_departures)}</div>`;
+        message = `<div class="message">${escapeHtml(t.no_departures)}</div>`;
       }
     }
 
@@ -508,17 +508,25 @@ class PidDeparturesCard extends HTMLElement {
       const style = document.createElement("style");
       style.textContent = STYLES;
       this._card = document.createElement("ha-card");
+      this._card.innerHTML = `<div class="content"><div class="departures"></div></div>`;
+      this._content = this._card.querySelector(".content");
+      this._departuresEl = this._card.querySelector(".departures");
+      this._topNodes = [];
+      this._topHtml = null;
+      this._messageHtml = null;
+      this._rowEls = new Map();
       this.shadowRoot.append(style, this._card);
       this._listen(this._card);
     }
 
-    this._shownRows = shownRows;
+    this._shownRows = rows.length;
     this._card.classList.toggle("compact", config.compact);
     // Holding or double clicking a row must not select its text.
     this._card.classList.toggle("no-select", hasAction(config.hold_action) || hasAction(config.double_tap_action));
 
-    // Re-rendering replaces the rows and the service alert, keep keyboard focus
-    // on the same departure or on the alert.
+    // Rows that stay are updated in place and keep focus. A row that is
+    // rebuilt or moved, and the service alert when it changes, lose it:
+    // put it back on the same departure or on the alert.
     const active = this.shadowRoot.activeElement;
     const focused = active?.dataset?.entity;
     const infotextFocused = !!active?.classList?.contains("infotext");
@@ -531,19 +539,109 @@ class PidDeparturesCard extends HTMLElement {
     const template = columns
       .map((c) => `[${c}] ${c === "main" ? "minmax(0, 1fr)" : "max-content"}`)
       .join(" ");
-    this._card.innerHTML = `
+    this._updateTop(`
       ${config.show_header ? this._renderHeader(now, t, fmt) : ""}
-      ${config.show_infotext ? this._renderInfotext() : ""}
-      <div class="content">
-        <div class="departures ${departuresClass}"
-             style="grid-template-columns: ${template} [end]">${body}</div>
-      </div>
-    `;
+      ${config.show_infotext ? this._renderInfotext() : ""}`);
+    const list = this._departuresEl;
+    const listClass = `departures ${departuresClass}`;
+    if (list.className !== listClass) list.className = listClass;
+    const listColumns = `${template} [end]`;
+    if (list.style.gridTemplateColumns !== listColumns) list.style.gridTemplateColumns = listColumns;
+    if (message) this._showMessage(message);
+    else this._updateRows(rows);
 
-    if (focused) {
+    if (focused && this.shadowRoot.activeElement !== active) {
       this._card.querySelector(`[data-entity="${CSS.escape(focused)}"][tabindex]`)?.focus();
-    } else if (infotextFocused) {
+    } else if (infotextFocused && this.shadowRoot.activeElement !== active) {
       this._card.querySelector(".infotext")?.focus();
+    }
+  }
+
+  /** Header and service alert, replaced only when their content changes. */
+  _updateTop(html) {
+    if (html === this._topHtml) return;
+    this._topHtml = html;
+    this._topNodes.forEach((node) => node.remove());
+    const template = document.createElement("template");
+    template.innerHTML = html.trim();
+    this._topNodes = [...template.content.children];
+    this._content.before(...this._topNodes);
+  }
+
+  _showMessage(html) {
+    this._rowEls.clear();
+    if (html === this._messageHtml) return;
+    this._messageHtml = html;
+    this._departuresEl.innerHTML = html;
+  }
+
+  /**
+   * Updates the departure rows in place instead of rebuilding them, keyed by
+   * the departure sensor: a row keeps its element, focus and press ripple,
+   * and only the cells whose content changed are touched.
+   */
+  _updateRows(rows) {
+    const list = this._departuresEl;
+    if (this._messageHtml !== null) {
+      this._messageHtml = null;
+      list.textContent = "";
+    }
+
+    const keep = new Set(rows.map((r) => r.key));
+    for (const [key, el] of this._rowEls) {
+      if (!keep.has(key)) {
+        el.remove();
+        this._rowEls.delete(key);
+      }
+    }
+
+    rows.forEach((model, index) => {
+      let el = this._rowEls.get(model.key);
+      if (!el || el._shape !== model.shape) {
+        const created = this._createRow(model);
+        if (el) el.replaceWith(created);
+        el = created;
+        this._rowEls.set(model.key, el);
+      }
+      this._fillRow(el, model);
+      // Moving the element would drop its focus and ripple, only move when needed.
+      const at = list.children[index];
+      if (at !== el) list.insertBefore(el, at || null);
+    });
+  }
+
+  _createRow(model) {
+    const el = document.createElement("div");
+    el._shape = model.shape;
+    el._cells = {};
+    el._cellHtml = {};
+    el.dataset.entity = model.key;
+    for (const column of model.columns) {
+      const cell = document.createElement("div");
+      cell.className = `cell ${column}-cell`;
+      el._cells[column] = cell;
+      el.append(cell);
+    }
+    // Home Assistant's press and hover effect, when the frontend has it.
+    if (model.ripple) el.append(document.createElement("ha-ripple"));
+    return el;
+  }
+
+  _fillRow(el, model) {
+    if (el.className !== model.className) el.className = model.className;
+    for (const [name, value] of Object.entries(model.attributes)) {
+      if (value === null) {
+        if (el.hasAttribute(name)) el.removeAttribute(name);
+      } else if (el.getAttribute(name) !== value) {
+        el.setAttribute(name, value);
+      }
+    }
+    for (const column of model.columns) {
+      const html = model.cells[column];
+      if (el._cellHtml[column] !== html) {
+        el._cellHtml[column] = html;
+        el._cells[column].innerHTML = html;
+      }
     }
   }
 
@@ -818,7 +916,8 @@ class PidDeparturesCard extends HTMLElement {
       </div>`;
   }
 
-  _renderRow(d, now, t, fmt, columns) {
+  /** What a departure row shows, applied to its element by _updateRows. */
+  _rowModel(d, now, t, fmt, columns) {
     const a = d.attrs;
     const diffMs = d.estimated - now;
     const minutes = Math.floor(diffMs / 60000);
@@ -874,15 +973,24 @@ class PidDeparturesCard extends HTMLElement {
       time, countdown].filter(Boolean).join(", ");
     const interactive = this._rowsInteractive();
     // Only focusable when the keyboard can do something: it can only tap.
-    const attrs = interactive && this._tapRuns()
-      ? `role="button" tabindex="0" aria-label="${escapeHtml(label)}"`
-      : `role="group" aria-label="${escapeHtml(label)}"`;
+    const focusable = interactive && this._tapRuns();
+    const ripple = interactive && !!customElements.get("ha-ripple");
 
-    return `
-      <div class="row ${interactive ? "interactive" : ""} ${a.is_canceled ? "canceled" : ""} ${soon ? "soon" : ""}"
-           data-entity="${escapeHtml(d.entityId)}" ${attrs}>
-        ${columns.map((c) => `<div class="cell ${c}-cell">${cells[c]}</div>`).join("")}
-      </div>`;
+    return {
+      key: d.entityId,
+      columns,
+      // A row is rebuilt when its structure changes, otherwise updated in place.
+      shape: `${columns.join(",")}|${interactive}|${ripple}`,
+      ripple,
+      className: ["row", interactive && "interactive", ripple && "has-ripple",
+        a.is_canceled && "canceled", soon && "soon"].filter(Boolean).join(" "),
+      attributes: {
+        role: focusable ? "button" : "group",
+        tabindex: focusable ? "0" : null,
+        "aria-label": label,
+      },
+      cells,
+    };
   }
 
 }
@@ -958,6 +1066,8 @@ const STYLES = `
     box-sizing: border-box;
     border-radius: 8px;
     outline: none;
+    /* For the press ripple, which covers the row. */
+    position: relative;
   }
   .row.interactive {
     cursor: pointer;
@@ -965,7 +1075,10 @@ const STYLES = `
     touch-action: manipulation;
     transition: background-color 180ms ease-in-out;
   }
-  .row.interactive:hover, .row.interactive:focus-visible { background: var(--secondary-background-color); }
+  /* Without HA's ripple, a plain background on hover; the ripple has its own. */
+  .row.interactive:not(.has-ripple):hover, .row.interactive:focus-visible {
+    background: var(--secondary-background-color);
+  }
   /* A long press must not select text or open the callout on touch screens. */
   .no-select .row.interactive { user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
   .infotext:focus-visible { outline: 2px solid var(--warning-color); outline-offset: -2px; }
