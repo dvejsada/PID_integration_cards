@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- New options `lines` and `exclude_lines` to show only some lines, or to hide some, also in the visual editor. When no departure of the selected lines is left, the card says *No upcoming departures of the selected lines*.
+
 ## 1.0.0-alpha.2
 
 - When the integration has no data (the API is unreachable, or the board is not loaded), the card says *Departure data are unavailable* and shows *Data unavailable* in the header, instead of *No upcoming departures*. Since version 3.0 of the integration all its entities become unavailable when an update fails.
