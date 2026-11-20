@@ -26,6 +26,8 @@ const HOLD_MS = 500;
 const DOUBLE_TAP_MS = 250;
 // A press that moves further is a scroll, not a hold.
 const HOLD_MOVE_PX = 10;
+// The click that ends a hold follows its pointerup at once.
+const CLICK_AFTER_RELEASE_MS = 1000;
 
 const DEFAULTS = {
   time_format: "both",
@@ -514,8 +516,11 @@ class PidDeparturesCard extends HTMLElement {
     this._card.classList.toggle("compact", config.compact);
     this._card.classList.toggle("has-hold", hasAction(config.hold_action));
 
-    // Re-rendering replaces the rows, keep keyboard focus on the same departure.
-    const focused = this.shadowRoot.activeElement?.dataset?.entity;
+    // Re-rendering replaces the rows and the service alert, keep keyboard focus
+    // on the same departure or on the alert.
+    const active = this.shadowRoot.activeElement;
+    const focused = active?.dataset?.entity;
+    const infotextFocused = !!active?.classList?.contains("infotext");
 
     // Every row is a subgrid of this grid, so a column has the same width in all
     // rows: a delay badge or a long label never shifts the neighbouring rows.
@@ -536,6 +541,8 @@ class PidDeparturesCard extends HTMLElement {
 
     if (focused) {
       this._card.querySelector(`[data-entity="${CSS.escape(focused)}"][tabindex]`)?.focus();
+    } else if (infotextFocused) {
+      this._card.querySelector(".infotext")?.focus();
     }
   }
 
@@ -563,7 +570,8 @@ class PidDeparturesCard extends HTMLElement {
       if (hasAction(this._config.hold_action)) {
         press.timer = window.setTimeout(() => {
           press.held = true;
-          this._cancelPendingTap();
+          // A tap still waiting for a possible double tap happened first.
+          this._flushPendingTap();
           this._fireAction(press.entity, "hold");
         }, HOLD_MS);
       }
@@ -577,7 +585,11 @@ class PidDeparturesCard extends HTMLElement {
       }
     });
     card.addEventListener("pointercancel", () => this._cancelPress());
-    card.addEventListener("pointerup", () => window.clearTimeout(this._press?.timer));
+    card.addEventListener("pointerup", () => {
+      if (!this._press) return;
+      window.clearTimeout(this._press.timer);
+      this._press.releasedAt = performance.now();
+    });
     // A long press on touch screens would open the context menu instead.
     card.addEventListener("contextmenu", (ev) => {
       if (this._rowFor(ev) && hasAction(this._config.hold_action)) ev.preventDefault();
@@ -592,21 +604,28 @@ class PidDeparturesCard extends HTMLElement {
       if (!row) return;
       const press = this._press;
       this._press = null;
-      // The hold already ran its action.
-      if (press?.held) return;
+      // The hold already ran its action. Only for the click that ends this
+      // press: a press released outside the card leaves no click, and a later
+      // click without a pointer press (e.g. from a screen reader) is a tap.
+      if (press?.held && press.releasedAt !== undefined
+        && performance.now() - press.releasedAt < CLICK_AFTER_RELEASE_MS) return;
       this._tap(row.dataset.entity);
     });
 
     card.addEventListener("keydown", (ev) => {
       if (ev.key !== "Enter" && ev.key !== " ") return;
-      if (ev.target.closest(".infotext")) {
-        ev.preventDefault();
+      // Leave shortcuts with modifiers to the browser and Home Assistant.
+      if (ev.ctrlKey || ev.altKey || ev.metaKey) return;
+      const target = ev.target.closest(".infotext") || this._rowFor(ev);
+      if (!target) return;
+      ev.preventDefault();
+      // A held key repeats keydown, act only once.
+      if (ev.repeat) return;
+      if (target.classList.contains("infotext")) {
         this._toggleInfotext();
         return;
       }
-      const row = this._rowFor(ev);
-      if (!row) return;
-      ev.preventDefault();
+      const row = target;
       // The keyboard has no hold or double tap, like on Home Assistant's own cards.
       this._fireAction(row.dataset.entity, "tap");
     });
@@ -629,10 +648,7 @@ class PidDeparturesCard extends HTMLElement {
       this._fireAction(entityId, "double_tap");
       return;
     }
-    if (pending) {
-      this._cancelPendingTap();
-      this._fireAction(pending.entity, "tap");
-    }
+    this._flushPendingTap();
     this._pendingTap = {
       entity: entityId,
       timer: window.setTimeout(() => {
@@ -645,6 +661,14 @@ class PidDeparturesCard extends HTMLElement {
   _cancelPress() {
     window.clearTimeout(this._press?.timer);
     this._press = null;
+  }
+
+  /** Runs a tap that is waiting for a possible double tap right away. */
+  _flushPendingTap() {
+    const pending = this._pendingTap;
+    if (!pending) return;
+    this._cancelPendingTap();
+    this._fireAction(pending.entity, "tap");
   }
 
   _cancelPendingTap() {
