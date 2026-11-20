@@ -907,8 +907,8 @@ class PidDeparturesCard extends HTMLElement {
 
     if (!title && !status) return "";
     return `
-      <div class="header">
-        <div class="title">${escapeHtml(title)}</div>
+      <div class="card-header">
+        <div class="name">${escapeHtml(title)}</div>
         ${status}
       </div>`;
   }
@@ -1012,18 +1012,29 @@ class PidDeparturesCard extends HTMLElement {
 
 const STYLES = `
   ha-card { overflow: hidden; }
-  .header {
+  /*
+   * Home Assistant design tokens are used with the values of older versions
+   * as fallbacks: fonts since 2025.5, radii since 2025.8, spacing since 2025.10.
+   */
+
+  /* Same typography and theme variables as the header of HA's own cards
+     (ha-card .card-header), with a smaller gap below so the list stays close. */
+  .card-header {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 16px 16px 8px;
+    gap: var(--ha-space-2, 8px);
+    margin: 0;
+    padding: var(--ha-space-4, 16px) var(--ha-space-4, 16px) var(--ha-space-2, 8px);
+    color: var(--ha-card-header-color, var(--primary-text-color));
+    font-family: var(--ha-card-header-font-family, inherit);
+    font-size: var(--ha-card-header-font-size, var(--ha-font-size-2xl, 24px));
+    font-weight: var(--ha-font-weight-normal, 400);
+    letter-spacing: -0.012em;
+    line-height: var(--ha-line-height-condensed, 1.2);
   }
-  .title {
+  .card-header .name {
     flex: 1;
     min-width: 0;
-    font-size: var(--ha-card-header-font-size, 24px);
-    line-height: 1.2;
-    color: var(--ha-card-header-color, var(--primary-text-color));
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -1031,20 +1042,22 @@ const STYLES = `
   .stale {
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: var(--ha-space-1, 4px);
     color: var(--warning-color);
-    font-size: 12px;
+    font-family: var(--ha-font-family-body, inherit);
+    font-size: var(--ha-font-size-s, 12px);
+    letter-spacing: normal;
     --mdc-icon-size: 18px;
   }
   .infotext {
     display: flex;
-    gap: 8px;
-    margin: 0 16px 8px;
-    padding: 8px 12px;
-    border-radius: 8px;
+    gap: var(--ha-space-2, 8px);
+    margin: 0 var(--ha-space-4, 16px) var(--ha-space-2, 8px);
+    padding: var(--ha-space-2, 8px) var(--ha-space-3, 12px);
+    border-radius: var(--ha-border-radius-md, 8px);
     color: var(--primary-text-color);
     background: rgba(var(--rgb-warning-color, 255, 166, 0), 0.15);
-    font-size: 13px;
+    font-size: var(--ha-font-size-s, 12px);
     line-height: 1.4;
     cursor: pointer;
     --mdc-icon-size: 20px;
@@ -1060,9 +1073,9 @@ const STYLES = `
   .content {
     /* Lets the rows adapt to the width of the card, not of the window. */
     container-type: inline-size;
-    padding: 0 8px 8px;
+    padding: 0 var(--ha-space-2, 8px) var(--ha-space-2, 8px);
   }
-  ha-card > .content:first-child { padding-top: 8px; }
+  ha-card > .content:first-child { padding-top: var(--ha-space-2, 8px); }
   .departures {
     display: grid;
     column-gap: 10px;
@@ -1077,9 +1090,9 @@ const STYLES = `
     column-gap: inherit;
     align-items: center;
     min-height: 52px;
-    padding: 6px 8px;
+    padding: 6px var(--ha-space-2, 8px);
     box-sizing: border-box;
-    border-radius: 8px;
+    border-radius: var(--ha-border-radius-md, 8px);
     outline: none;
     /* For the press ripple, which covers the row. */
     position: relative;
@@ -1124,11 +1137,11 @@ const STYLES = `
     box-sizing: border-box;
     min-width: 2.75em;
     max-width: 5em;
-    padding: 4px 6px;
-    border-radius: 6px;
+    padding: var(--ha-space-1, 4px) 6px;
+    border-radius: var(--ha-border-radius-sm, 4px);
     text-align: center;
-    font-weight: 700;
-    font-size: 15px;
+    font-weight: var(--ha-font-weight-bold, 700);
+    font-size: var(--ha-font-size-m, 14px);
     line-height: 1.2;
     color: #fff;
     background: var(--pid-line-bg);
@@ -1152,8 +1165,8 @@ const STYLES = `
     box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
   }
   .headsign {
-    font-size: 15px;
-    font-weight: 500;
+    font-size: var(--ha-font-size-m, 14px);
+    font-weight: var(--ha-font-weight-medium, 500);
     color: var(--primary-text-color);
     overflow: hidden;
     text-overflow: ellipsis;
@@ -1165,7 +1178,7 @@ const STYLES = `
     gap: 6px;
     margin-top: 2px;
     color: var(--secondary-text-color);
-    font-size: 12px;
+    font-size: var(--ha-font-size-s, 12px);
     white-space: nowrap;
     overflow: hidden;
     --mdc-icon-size: 16px;
@@ -1173,28 +1186,28 @@ const STYLES = `
   .platform {
     display: inline-block;
     min-width: 1.2em;
-    padding: 0 4px;
+    padding: 0 var(--ha-space-1, 4px);
     border: 1px solid var(--divider-color);
-    border-radius: 4px;
-    font-size: 12px;
-    font-weight: 600;
+    border-radius: var(--ha-border-radius-sm, 4px);
+    font-size: var(--ha-font-size-s, 12px);
+    font-weight: var(--ha-font-weight-medium, 500);
     color: var(--secondary-text-color);
   }
   .time-cell {
-    font-size: 13px;
+    font-size: var(--ha-font-size-s, 12px);
     color: var(--secondary-text-color);
     white-space: nowrap;
   }
   .count-cell {
-    font-size: 16px;
-    font-weight: 600;
+    font-size: var(--ha-font-size-l, 16px);
+    font-weight: var(--ha-font-weight-bold, 700);
     color: var(--primary-text-color);
     white-space: nowrap;
   }
   /* Without a countdown the time is the main information. */
   .no-count .time-cell {
-    font-size: 16px;
-    font-weight: 600;
+    font-size: var(--ha-font-size-l, 16px);
+    font-weight: var(--ha-font-weight-bold, 700);
     color: var(--primary-text-color);
   }
   .soon .count-cell { color: var(--primary-color); }
@@ -1202,11 +1215,11 @@ const STYLES = `
   .badge {
     box-sizing: border-box;
     min-width: 2em;
-    padding: 1px 4px;
-    border-radius: 4px;
+    padding: 1px var(--ha-space-1, 4px);
+    border-radius: var(--ha-border-radius-sm, 4px);
     text-align: center;
-    font-size: 12px;
-    font-weight: 700;
+    font-size: var(--ha-font-size-s, 12px);
+    font-weight: var(--ha-font-weight-bold, 700);
     line-height: 1.3;
   }
   .badge.early { background: var(--info-color, #039be5); color: #fff; }
@@ -1217,7 +1230,7 @@ const STYLES = `
   .canceled .count-cell { color: var(--error-color); }
   .message {
     grid-column: 1 / -1;
-    padding: 16px 8px;
+    padding: var(--ha-space-4, 16px) var(--ha-space-2, 8px);
     color: var(--secondary-text-color);
     text-align: center;
   }
@@ -1235,7 +1248,7 @@ const STYLES = `
     .stackable .line-cell, .stackable .main-cell, .stackable .platform-cell { grid-row: 1 / span 2; }
     .stackable .count-cell { grid-row: 1; grid-column: time / end; }
     .stackable .time-cell, .stackable .delay-cell { grid-row: 2; }
-    .stackable .time-cell { font-size: 12px; }
+    .stackable .time-cell { font-size: var(--ha-font-size-s, 12px); }
   }
 
   /* Narrow cards: the destination gets the whole first line, the values the second. */
@@ -1251,15 +1264,17 @@ const STYLES = `
   }
 
   /* Compact: one line per departure, for wall panels and small tiles. */
-  .compact .row { min-height: 36px; padding: 2px 8px; grid-template-rows: auto; row-gap: 0; }
+  .compact .row { min-height: 36px; padding: 2px var(--ha-space-2, 8px); grid-template-rows: auto; row-gap: 0; }
   .compact .features { display: none; }
-  .compact .line { min-width: 2.5em; padding: 2px 4px; font-size: 14px; }
+  .compact .line { min-width: 2.5em; padding: 2px var(--ha-space-1, 4px); }
   .compact .cell { grid-row: 1; }
   .compact .main-cell { grid-column: main; }
-  .compact .time-cell { grid-column: time; font-size: 13px; }
+  .compact .time-cell { grid-column: time; }
   .compact .count-cell { grid-column: count; }
-  .compact .header { padding: 12px 16px 4px; }
-  .compact .title { font-size: 18px; }
+  .compact .card-header {
+    padding: var(--ha-space-3, 12px) var(--ha-space-4, 16px) var(--ha-space-1, 4px);
+    font-size: var(--ha-font-size-xl, 20px);
+  }
   @container (max-width: 339px) {
     /* One line has no room for both, the countdown matters more. */
     .compact .stackable .time-cell { display: none; }

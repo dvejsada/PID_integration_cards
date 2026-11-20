@@ -4,6 +4,10 @@
 
 The card uses the standard Home Assistant theme variables (`primary-text-color`, `secondary-text-color`, `divider-color`, `primary-color`, `warning-color`, `error-color`, `info-color`, …), so it follows your theme in light and dark mode.
 
+Text sizes, font weights, corner radii and spacing come from Home Assistant's design tokens (`ha-font-size-*`, `ha-font-weight-*`, `ha-border-radius-*`, `ha-space-*`), so the card follows the font size scale and a theme that changes them. On versions before the tokens existed (fonts 2025.5, radii 2025.8, spacing 2025.10) the card uses the same default values.
+
+The title is styled like the header of Home Assistant's own cards and follows `ha-card-header-font-size`, `ha-card-header-font-family` and `ha-card-header-color`.
+
 ## Line colours
 
 The line badges use colours close to the PID ones. They can be changed by setting these variables in a [theme](https://www.home-assistant.io/integrations/frontend/#defining-themes):
