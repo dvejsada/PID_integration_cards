@@ -546,7 +546,11 @@ class PidDeparturesCard extends HTMLElement {
     const listClass = `departures ${departuresClass}`;
     if (list.className !== listClass) list.className = listClass;
     const listColumns = `${template} [end]`;
-    if (list.style.gridTemplateColumns !== listColumns) list.style.gridTemplateColumns = listColumns;
+    // Compared with what was set: the browser reads the style back normalised.
+    if (this._listColumns !== listColumns) {
+      this._listColumns = listColumns;
+      list.style.gridTemplateColumns = listColumns;
+    }
     if (message) this._showMessage(message);
     else this._updateRows(rows);
 
@@ -726,6 +730,8 @@ class PidDeparturesCard extends HTMLElement {
     });
 
     card.addEventListener("click", (ev) => {
+      // The click sent from keydown only shows the ripple, keydown ran the action.
+      if (this._rippleClick) return;
       if (ev.target.closest(".infotext")) {
         this._toggleInfotext();
         return;
@@ -760,6 +766,15 @@ class PidDeparturesCard extends HTMLElement {
         return;
       }
       this._fireAction(row.dataset.entity, "tap");
+      // HA's ripple shows a press for a click without a pointer, as on its own cards.
+      if (row.querySelector(":scope > ha-ripple")) {
+        this._rippleClick = true;
+        try {
+          row.click();
+        } finally {
+          this._rippleClick = false;
+        }
+      }
     });
   }
 
