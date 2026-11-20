@@ -23,7 +23,7 @@ The browser has not loaded the card.
 
 The browser keeps the old file in its cache. Reload the page while bypassing the cache (Ctrl+Shift+R, or Cmd+Shift+R on a Mac); on the companion app reset the frontend cache as described above. With a manual installation, increase the `?v=` number in the resource URL.
 
-The version that is running is printed in the browser console (`PID-DEPARTURES-CARD 1.0.0`).
+The version that is running is printed in the browser console (e.g. `PID-DEPARTURES-CARD 1.0.0-beta.1`).
 
 ## "Departure board not found"
 

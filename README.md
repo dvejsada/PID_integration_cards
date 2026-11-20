@@ -15,12 +15,15 @@ The card displays data from the [PID Departure Boards integration](https://githu
 - **Delays at a glance**: scheduled time with a delay badge (orange up to 4 minutes, red from 5), early departures in blue, a calendar icon for trips without real-time data
 - **Cancelled trips**, **vehicles at the stop** and the stop's **service alerts**
 - **Several platforms in one list**: select more departure boards, e.g. all platforms of a stop, and their departures are merged and sorted by time
+- **Only the lines you need**: show only some lines, or hide some
+- **Tap, hold and double tap actions** like on Home Assistant's own cards: details by default, or navigate, call an action, …
 - **Stable layout**: every value has its own column shared by all rows, so a delay or a cancellation never shifts the other rows
 - **Fits any column**: one line per departure on wide cards, a stacked layout on medium and narrow ones, and a compact mode for wall panels
 - **Line colours** of PID (metro A/B/C, tram, bus, trolleybus, train, ferry, funicular, night lines), adjustable by a theme
 - **Warning when data are stale**, e.g. when the API is down
 - **Visual editor**, card picker preview, sections view support
-- **Follows your profile**: theme, language (English, Czech, Slovak, German), 12/24-hour time and time zone
+- **Looks like Home Assistant**: follows your theme, font size scale and HA's design, with HA's press effect
+- **Follows your profile**: language (English, Czech, Slovak, German), 12/24-hour time and time zone
 
 ## Requirements
 
@@ -42,11 +45,13 @@ Or add it by hand:
 
 HACS registers the card with your dashboards automatically.
 
+The card is in beta. HACS offers pre-release versions only when **Show beta versions** is turned on: open the card in HACS, select the **⋮** menu, choose **Redownload** and turn on **Show beta versions** in the version selection.
+
 ### Manual
 
 1. Download `pid-departures-card.js` from the [latest release](https://github.com/dvejsada/PID_integration_cards/releases/latest) and copy it to `config/www/`.
 2. Go to **Settings → Dashboards**, select the **⋮** menu and choose **Resources**. If the menu is missing, enable **Advanced mode** in your user profile.
-3. Add a resource with the URL `/local/pid-departures-card.js?v=1.0.0` and the type **JavaScript module**. Increase the `v` number with every update, otherwise browsers keep the old version.
+3. Add a resource with the URL `/local/pid-departures-card.js?v=1.0.0-beta.1` and the type **JavaScript module**. Increase the `v` number with every update, otherwise browsers keep the old version.
 4. Reload the browser.
 
 ## Usage
