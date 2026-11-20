@@ -4,6 +4,8 @@
 
 - Standard Home Assistant actions on departures: `tap_action`, `hold_action` and `double_tap_action`, with confirmation, navigate, perform-action and the other actions of built-in cards, also in the visual editor (*Interactions*). Tapping still opens the details by default.
 - With every action set to `none` the rows are not clickable or focusable.
+- Departures show Home Assistant's press and hover effect (ripple) when the frontend provides it (HA 2024.6 and newer), otherwise the hover background as before.
+- Rows are updated in place instead of being rebuilt every 15 seconds, so focus and the press effect survive updates and less work is done on wall panels.
 - The service alert can be expanded with the keyboard; the focused departure is outlined in high contrast mode; the hover effect respects *reduce motion*.
 
 - New options `lines` and `exclude_lines` to show only some lines, or to hide some, also in the visual editor. When no departure of the selected lines is left, the card says *No upcoming departures of the selected lines*.

@@ -26,7 +26,9 @@ When the integration renames these keys or the attributes of the `route_name` se
 
 ## Performance
 
-Home Assistant replaces the `hass` object on every state change in the whole system. The card re-renders only when one of its own entities or the language changed, and otherwise once every 15 seconds for the countdown. The timer stops while the card is not displayed (e.g. on another dashboard view) and skips rendering while the browser tab is hidden.
+Home Assistant replaces the `hass` object on every state change in the whole system. The card re-renders only when one of its own entities or the language changed, and otherwise once every 15 seconds for the countdown.
+
+A render does not rebuild the card. Each departure row is kept, keyed by its sensor, and only the cells whose content changed are replaced; rows are moved only when the order changes. The header and the service alert are replaced only when their content changes. This keeps keyboard focus and the press ripple (`ha-ripple`, used when the frontend has defined it) across updates. The timer stops while the card is not displayed (e.g. on another dashboard view) and skips rendering while the browser tab is hidden.
 
 ## Checks
 
