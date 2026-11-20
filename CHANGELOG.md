@@ -26,6 +26,7 @@ First beta. The card now follows the look and the interactions of Home Assistant
 ### Upgrading
 
 - **card-mod:** the title elements are now `.card-header` and `.name` instead of `.header` and `.title`. Class names are not a stable interface, prefer the theme variables where possible.
+- HACS: this is a pre-release, turn on **Show beta versions** for the card in HACS to get it.
 - Manual installation: change the resource URL to `/local/pid-departures-card.js?v=1.0.0-beta.1` so browsers load the new version.
 
 ## 1.0.0-alpha.2

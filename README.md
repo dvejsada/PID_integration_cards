@@ -45,6 +45,8 @@ Or add it by hand:
 
 HACS registers the card with your dashboards automatically.
 
+The card is in beta. HACS offers pre-release versions only when **Show beta versions** is turned on: open the card in HACS, select the **⋮** menu, choose **Redownload** and turn on **Show beta versions** in the version selection.
+
 ### Manual
 
 1. Download `pid-departures-card.js` from the [latest release](https://github.com/dvejsada/PID_integration_cards/releases/latest) and copy it to `config/www/`.
